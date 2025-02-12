@@ -89,6 +89,30 @@ projectsRouter.post("/:projectId/addMember/:memberId", async (req, res) => {
     }
 });
 
+projectsRouter.delete("/:projectId/deleteMember/:memberId", async (req, res) => {
+    try {
+        const projectId = req.params.projectId;
+        const memberId = req.params.memberId;
+
+        if(!projectId || !memberId) {
+            return res.status(400).send("Please provide all required fields: projectId, memberId");
+        }
+
+        const deletedMember = await pool.query("DELETE FROM projects_members WHERE projectId = $1 AND memberId = $2 RETURNING *", [projectId, memberId]);
+        
+        if(!deletedMember) {
+            return res.status(500).send("Error deleting member from project");
+        }
+
+        const result = deletedMember.rows[0];
+
+        return res.status(200).send(result);
+    } catch(e) {
+        console.error(e);
+        return res.status(500).send("Internal server error");
+    }
+});
+
 projectsRouter.get("/:projectId/members", async (req, res) => {
     try {
         const projectId = req.params.projectId;
@@ -205,20 +229,35 @@ projectsRouter.delete("/:projectId/bugs/:id", async (req, res) => {
 projectsRouter.get("/:projectId/bugs", async (req, res) => {
     try {
         const projectId = req.params.projectId;
+        const page = parseInt(req.query.page);
+        const limit = parseInt(req.query.limit);
+        const filter = req.query.filter;
 
         if(!projectId) {
             return res.status(400).send("Please provide projectId");
         }
-        const bugs = await pool.query("SELECT * FROM bugs WHERE projectId = $1", [projectId]);
+
+        let query = "SELECT * FROM bugs WHERE projectId = $1";
+        let queryParams = [projectId];
+
+        if(filter) {
+            query += " AND (title ILIKE $2 OR description ILIKE $2)";
+            queryParams.push(`%${filter}%`);
+        }
+
+        if(!isNaN(page) && !isNaN(limit) && page > 0 && limit > 0) {
+            query += " LIMIT $3 OFFSET $4";
+            queryParams.push(limit, (page - 1) * limit);
+        }
+
+        const bugs = await pool.query(query, queryParams);
 
         if(!bugs) {
             return res.status(404).send("No bugs found");
         }
 
-        const result = bugs.rows;
-
-        return res.status(200).send(result);
-    } catch(e) {
+        return res.status(200).send({ page: page || "all", bugs: bugs.rows });
+    } catch (e) {
         console.error(e);
         return res.status(500).send("Internal server error");
     }
@@ -230,7 +269,6 @@ projectsRouter.post("/:projectId/bugs/:bugId/comments", async (req, res) => {
         const bugId = req.params.bugId;
         const {memberId, content} = req.body;
 
-        console.log([projectId, memberId, content]);
         if(!projectId || !bugId) {
             return res.status(400).send("Please provide projectId");
         }
