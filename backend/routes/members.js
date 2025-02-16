@@ -44,13 +44,12 @@ membersRouter.post("/login", async (req, res) => {
             return res.status(400).send("Please provide both email and password");
         }
 
-        const memberCheck = pool.query("SELECT * FROM members WHERE email = $1",[email]);
+        const memberCheck = await pool.query("SELECT * FROM members WHERE email = $1",[email]);
 
         if(memberCheck.rows[0].email !== email) {
             return res.status(401).send("Wrong email or password");
         }
-
-        const passwordCheck = await bcrypt.compare(password, (await memberCheck).rows[0].password);
+        const passwordCheck = await bcrypt.compare(password, memberCheck.rows[0].password);
 
         if(!passwordCheck) {
             return res.status(401).send("Wrong email or password");
@@ -58,7 +57,7 @@ membersRouter.post("/login", async (req, res) => {
 
         const token = jwt.sign({memberId: memberCheck.rows[0].id}, process.env.JWTSECRET);
 
-        return res.status(200).send(token);
+        return res.status(200).send({jwt: token});
     } catch(e) {
         console.error(e);
         return res.status(500).send("Internal sever error");
