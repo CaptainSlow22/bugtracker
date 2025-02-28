@@ -121,7 +121,7 @@ projectsRouter.get("/:projectId/members", async (req, res) => {
             return res.status(400).send("Please provide projectId");
         }
 
-        const projectMembers = await pool.query("SELECT m.firstName, m.lastName FROM members m INNER JOIN projects_members pm ON pm.memberId = m.id WHERE pm.projectId = $1", [projectId]);
+        const projectMembers = await pool.query("SELECT m.id, m.firstName, m.lastName FROM members m INNER JOIN projects_members pm ON pm.memberId = m.id WHERE pm.projectId = $1", [projectId]);
 
         if(!projectMembers) {
             return res.status(404).send("No members assigned");

@@ -44,15 +44,15 @@ const Login = () => {
       };
 
   return (
-    <div className='flex flex-col space-y-8 h-screen justify-center items-center'>
+    <div className='bg-gray-100 flex flex-col space-y-8 h-screen justify-center items-center'>
         <div className='text-4xl font-black'>
             <h1>Log into your member account</h1>
         </div>
-        <div className='bg-gradient-to-tr from-gray-900 to-gray-800 p-10 rounded-xl'>
+        <div className='bg-white shadow-lg p-10 rounded-xl'>
             <form onSubmit={handleSubmit} className='flex flex-col space-y-8'>
-                <input onChange={(e) => setEmail(e.target.value)} type="email" placeholder="Email" className="bg-white w-[250px]" />
-                <input onChange={(e) => setPassword(e.target.value)} type="password" placeholder="Password" className="bg-white w-[250px]"/>
-                <button className='px-4 py-2 bg-green-400 text-white font-bold rounded-full'>Log In</button>
+                <input onChange={(e) => setEmail(e.target.value)} type="email" placeholder="Email" className="p-2 shadow-inne bg-gray-100 w-[250px] rounded-xl" />
+                <input onChange={(e) => setPassword(e.target.value)} type="password" placeholder="Password" className="p-2 shadow-inner bg-gray-100 w-[250px] rounded-xl"/>
+                <button className='px-4 py-2 bg-blue-700 text-white font-bold rounded-full'>Log In</button>
                 {error && (
                     <div className="bg-red-500 text-white w-fit text-sm py-1 px-3 rounded-md mt-2">
                     {error}
