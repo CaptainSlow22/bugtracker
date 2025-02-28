@@ -59,19 +59,19 @@ const Projects = () => {
     }
 
     return (
-        <div className='bg-gradient-to-t from-gray-200 to-gray-100 h-full'>
-            <div className='flex justify-between bg-gradient-to-tr from-gray-900 to-gray-800 px-6 py-4 m-6 rounded-xl'>
-              <h1 className='text-white font-bold text-3xl'>All Projects</h1>
-              <button onClick={handleSignOut} className='bg-gradient-to-tr from-red-600 to-red-400 p-2 rounded-xl text-white'>Sign Out</button>
+        <div className='bg-gradient-to-t from-gray-200 to-gray-100 h-screen'>
+            <div className='flex justify-between bg-white shadow-xl px-6 py-4'>
+              <h1 className='font-bold text-3xl'>All Projects</h1>
+              <button onClick={handleSignOut} className='bg-red-500 p-2 rounded-xl text-white font-bold'>Sign Out</button>
             </div>
-            <div className='px-10'>
+            <div className='px-10 mt-10'>
               <Link to='/projects/newProject'><button className='bg-blue-700 p-2 rounded-xl text-white font-bold'>+ Add new project</button></Link>
             </div>
             {projects.length > 0 ? (
                 <div className='grid grid-cols-3 gap-8 p-16'>
                     {projects.map((project) => (
                       <div key={project.id}>
-                        <Link to={`/projects/${project.id}/bugs`}>
+                        <Link to={`/projects/${project.id}/dashboard`}>
                           <ProjectCard title={project.title} description={project.description} />
                         </Link>
                         <button onClick={() => deleteProject(project.id)} className='px-6 text-red-600 underline'>Delete</button>
