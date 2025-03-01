@@ -54,7 +54,7 @@ const AddMember = () => {
         <div>
             <h1 className='text-3xl font-bold'>Add new member to project</h1>
             {allMembers.length > 0 ? (
-                <div className='bg-white p-6 mt-6 rounded-2xl'>
+                <div className='bg-white p-6 mt-6 rounded-2xl w-1/2'>
                     {allMembers.map((member) => (
                         <div key={member.id} className='border-b p-2'>
                             <label className='text-xl'>

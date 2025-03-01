@@ -10,6 +10,7 @@ import Stats from './components/Stats';
 import Dashboard from './components/Dashboard';
 import { AuthProvider } from './components/AuthContext';
 import AddMember from './components/addMember';
+import AddBug from './components/AddBug';
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
           <Route path='/projects/newProject' element={<AddProject />} />
           <Route path='/projects/:id' element={<ProjectLayout />}>
             <Route path='addMember' element={<AddMember/>} />
+            <Route path='addBug' element={<AddBug/>} />
             <Route path='bugs' element={<Bugs />} />
             <Route path='stats' element={<Stats />} />
             <Route path='dashboard' element={<Dashboard />} />
