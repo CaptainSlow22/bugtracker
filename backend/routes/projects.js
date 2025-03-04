@@ -263,6 +263,29 @@ projectsRouter.get("/:projectId/bugs", async (req, res) => {
     }
 });
 
+projectsRouter.get("/:projectId/bugs/:bugId", async (req, res) => {
+    try {
+        const projectId = req.params.projectId;
+        const bugId = req.params.bugId;
+
+        if(!projectId || !bugId) {
+            return res.status(400).send("Please provide all required fields");
+        }
+
+        const bug = await pool.query("SELECT * FROM bugs WHERE projectId = $1 AND id = $2", [projectId, bugId]);
+
+        if(!bug) {
+            return res.status(404).send("No bug found");
+        }
+
+        const result = bug.rows[0];
+
+        return res.status(200).send(result);
+    } catch(error) {
+        return res.status(500).send("Internal server error");
+    }
+});
+
 projectsRouter.post("/:projectId/bugs/:bugId/comments", async (req, res) => {
     try {
         const projectId = req.params.projectId;
