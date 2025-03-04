@@ -11,7 +11,7 @@ const Bugs = () => {
       try {
         const res = await fetch(`http://localhost:8080/projects/${id}/bugs`);
         const data = await res.json();
-        setBugs(data.bugs);
+        setBugs(data.bugs.reverse());
       } catch(error) {
         setError("Error fetching bugs");
         console.error(error);
@@ -58,7 +58,9 @@ const Bugs = () => {
                 {bugs.length > 0 ? (
                     bugs.map((bug) => (
                         <tr key={bug.id} className="hover:bg-gray-100 font-bold">
-                            <td className="p-4">{bug.title}</td>
+                            <NavLink to={`/projects/${id}/bugs/${bug.id}`}>
+                              <td className="p-4">{bug.title}</td>
+                            </NavLink>
                             <td className="p-4">
                               <span className={`px-3 py-1 rounded-full text-white ${
                                 bug.status === 'TO DO' ? 'bg-gray-500' :
