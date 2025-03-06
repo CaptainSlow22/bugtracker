@@ -233,26 +233,26 @@ projectsRouter.get("/:projectId/bugs", async (req, res) => {
         const limit = parseInt(req.query.limit);
         const filter = req.query.filter;
 
-        if(!projectId) {
+        if (!projectId) {
             return res.status(400).send("Please provide projectId");
         }
 
         let query = "SELECT * FROM bugs WHERE projectId = $1";
         let queryParams = [projectId];
 
-        if(filter) {
-            query += " AND (title ILIKE $2 OR description ILIKE $2)";
+        if (filter) {
+            query += " AND (title ILIKE $" + (queryParams.length + 1) + " OR description ILIKE $" + (queryParams.length + 1) + ")";
             queryParams.push(`%${filter}%`);
         }
 
-        if(!isNaN(page) && !isNaN(limit) && page > 0 && limit > 0) {
-            query += " LIMIT $3 OFFSET $4";
+        if (!isNaN(page) && !isNaN(limit) && page > 0 && limit > 0) {
+            query += " LIMIT $" + (queryParams.length + 1) + " OFFSET $" + (queryParams.length + 2);
             queryParams.push(limit, (page - 1) * limit);
         }
 
         const bugs = await pool.query(query, queryParams);
 
-        if(!bugs) {
+        if (!bugs.rows.length) {
             return res.status(404).send("No bugs found");
         }
 
@@ -262,6 +262,7 @@ projectsRouter.get("/:projectId/bugs", async (req, res) => {
         return res.status(500).send("Internal server error");
     }
 });
+
 
 projectsRouter.get("/:projectId/bugs/:bugId", async (req, res) => {
     try {
@@ -391,7 +392,7 @@ projectsRouter.get("/:projectId/bugs/:bugId/comments", async (req, res) => {
             return res.status(400).send("Please provide projectId and bugId");
         }
 
-        const comments = await pool.query("SELECT c.id, c.content, m.firstName, m.lastName, c.createdAt, c.updatedAt FROM comments c INNER JOIN members m ON m.id = c.memberId WHERE bugId = $1",[bugId]);
+        const comments = await pool.query("SELECT c.id, c.memberid, c.content, m.firstName, m.lastName, c.createdAt, c.updatedAt FROM comments c INNER JOIN members m ON m.id = c.memberId WHERE bugId = $1",[bugId]);
 
         if(!comments) {
             return res.status(404).send("Comments not found");
