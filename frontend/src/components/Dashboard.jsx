@@ -6,6 +6,7 @@ const Dashboard = () => {
     const { id } = useParams();
     const [bugs, setBugs] = useState([]);
     const [members, setMembers] = useState([]);
+    const [filter, setFilter] = useState("");
 
     useEffect(() => {
         const fetchMembers = async () => {
@@ -21,7 +22,7 @@ const Dashboard = () => {
 
         const fetchBugs = async () => {
             try {
-                const res = await fetch(`http://localhost:8080/projects/${id}/bugs`);
+                const res = await fetch(`http://localhost:8080/projects/${id}/bugs?filter=${filter}`);
                 const data = await res.json();
                 console.log(data);
                 setBugs(data.bugs);
@@ -32,7 +33,9 @@ const Dashboard = () => {
 
         fetchMembers();
         fetchBugs();
-    }, []);
+    }, [filter]);
+
+    
 
     const deleteMember = async (memberid) => {
         try {
@@ -57,18 +60,18 @@ const Dashboard = () => {
 
     return (
         <div>
-            <h1 className="text-4xl font-black mb-8">Dashboard</h1>
+            <h1 className="text-4xl font-black mb-6">Dashboard</h1>
             <NavLink to={`/projects/${id}/addMember`} className="px-3 py-2 bg-green-400 rounded-full font-bold text-white">
                 + Add Member to Project
             </NavLink>
 
-            <div className="flex items-center space-x-4 mt-8">
+            <div className="flex items-center space-x-4 mt-4">
                 <div className="text-2xl font-bold">Project Members: </div>
                 <div className="flex">
                     {members.length > 0 ? (
-                        <div className="flex space-x-4 overflow-x-auto w-150 p-2 text-nowrap">
+                        <div className="flex space-x-4 overflow-x-auto no-scrollbar w-150 p-2 text-nowrap">
                             {members.map((member) => (
-                                <div key={member.id} className="flex space-x-2 bg-white rounded-full shadow-lg px-3 py-2">
+                                <div key={member.id} className="flex space-x-2 bg-white rounded-full shadow-md px-3 py-2">
                                     <div className="font-black">{member.firstname[0]}{member.lastname[0]}</div>
                                     <div>{member.firstname} {member.lastname}</div>
                                     <button onClick={() => deleteMember(member.id)} className="px-2 text-red-600 underline">
@@ -84,8 +87,15 @@ const Dashboard = () => {
                     )}
                 </div>
             </div>
-
-            <div className="flex space-x-6 mt-8">
+            <div className="flex items-center mt-2">
+                    <input onChange={(e) => setFilter(e.target.value)} value={filter} className="p-2 shadow-lg bg-white w-[250px] rounded-xl" placeholder="Search bugs..."/>
+                    <div className="-ml-8">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                        </svg>
+                    </div>
+            </div>
+            <div className="flex space-x-6 mt-6">
                 <div className="p-6 bg-white rounded-2xl w-1/3 shadow-md">
                     <h1 className="text-xl text-gray-500 mb-4">TO DO</h1>
                     <div className="h-70 space-y-4 overflow-auto p-2">
@@ -115,7 +125,7 @@ const Dashboard = () => {
                         )}
                     </div>
                 </div>
-
+                
                 <div className="p-6 bg-white rounded-2xl w-1/3 shadow-md">
                     <h1 className="text-xl text-gray-500 mb-4">DONE</h1>
                     <div className="h-70 space-y overflow-auto p-2">

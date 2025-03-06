@@ -2,7 +2,7 @@ import React from 'react'
 
 const ProjectCard = ({title, description}) => {
   return (
-    <div className='flex bg-white rounded-2xl shadow-2xl'>
+    <div className='flex bg-white rounded-2xl shadow-xl'>
         <div>
             <img className='rounded-l-2xl' src='https://mosaicprojects.com.au/Images/ProjectType.png' height={200} width={200}/>
         </div>
