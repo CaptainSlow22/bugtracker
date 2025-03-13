@@ -5,11 +5,13 @@ const Bugs = () => {
   const {id} = useParams();
   const [bugs, setBugs] = useState([]);
   const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
+
 
   useEffect(() => {
     const fetchBugs = async () => {
       try {
-        const res = await fetch(`http://localhost:8080/projects/${id}/bugs`);
+        const res = await fetch(`http://localhost:8080/projects/${id}/bugs?limit=5&page=${page}`);
         const data = await res.json();
         setBugs(data.bugs.reverse());
       } catch(error) {
@@ -19,7 +21,8 @@ const Bugs = () => {
     };
 
     fetchBugs();
-  },[]);
+  },[page]);
+
 
   const deleteBug = async (bugId) => {
     try {
@@ -37,6 +40,21 @@ const Bugs = () => {
     } catch(error) {
       setError("Error deleting bug");
       console.error(error);
+    }
+  }
+
+
+  const handleNext = () => {
+    if (bugs.length === 5) {
+      setPage(page + 1);
+    }
+  }
+
+  const handlePrev = () => {
+    if(page > 1) {
+      setPage(page - 1);
+    } else {
+      setPage(1);
     }
   }
 
@@ -91,8 +109,18 @@ const Bugs = () => {
                     </tr>
                 )}
             </tbody>
-        </table>
-
+      </table>
+      <div className='flex items-center justify-center space-x-6 mt-10'>
+          <div>
+            <button onClick={handlePrev} className='px-3 py-1 bg-black text-white text-xl rounded-full'>{'<'}</button>
+          </div>
+          <div>
+            <p className='font-bold text-xl'>Page {page}</p>
+          </div>
+          <div>
+            <button onClick={handleNext} className='px-3 py-1 bg-black text-white text-xl rounded-full'>{'>'}</button>
+          </div>
+      </div>  
     </div>
   )
 }

@@ -144,8 +144,8 @@ const AddBug = () => {
                         </select>
                     </div>
                 </div>
-                {error && <p className="mt-4 bg-red-500 p-2 text-white rounded-xl">{error}</p>}
             </form>
+            {error && <p className="mt-4 bg-red-500 p-2 text-white rounded-xl">{error}</p>}
         </div>
     );
 };
