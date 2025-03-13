@@ -38,7 +38,7 @@ const AddProject = () => {
         </div>
         <form onSubmit={handleSubmit} className='flex flex-col space-y-8 bg-white py-8 px-16 rounded-2xl shadow-xl'>
             <input onChange={(e) => setTitle(e.target.value)} type='text' placeholder='Title' className="p-2 bg-gray-100 shadow-inner w-[250px] rounded-xl"/>
-            <input onChange={(e) => setDescription(e.target.value)} type='text' placeholder='Description' className="p-2 bg-gray-100 shadow-inner w-[250px] rounded-xl" />
+            <textarea onChange={(e) => setDescription(e.target.value)} type='text' placeholder='Description' className="p-2 bg-gray-100 shadow-inner rounded-xl text-left align-top h-30 w-150" />
             <button className='px-4 py-2 bg-blue-600 text-white font-bold rounded-full'>Add Project</button>
             {error && (
                 <div className="bg-red-500 text-white w-fit text-sm py-1 px-3 rounded-md mt-2">

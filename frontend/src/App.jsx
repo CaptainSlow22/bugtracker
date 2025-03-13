@@ -12,6 +12,7 @@ import { AuthProvider } from './components/AuthContext';
 import AddMember from './components/addMember';
 import AddBug from './components/AddBug';
 import Bug from './components/Bug';
+import Register from './components/Register';
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
         <Routes>
           <Route path='/' element={<Home />} />
           <Route path='/login' element={<Login />} />
+          <Route path='/register' element={<Register />} />
           <Route path='/projects' element={<Projects />} />
           <Route path='/projects/newProject' element={<AddProject />} />
           <Route path='/projects/:id' element={<ProjectLayout />}>

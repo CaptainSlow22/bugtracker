@@ -1,7 +1,7 @@
 import { jwtDecode } from 'jwt-decode';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-
+import { debugAdvice } from '../lib/debugAdvice.js';
 
 const Bug = () => {
     const { id: projectId, bugId } = useParams();
@@ -15,6 +15,7 @@ const Bug = () => {
     const [comments, setComments] = useState([]);
     const [content, setContent] = useState("");
     const [error, setError] = useState("");
+    const [advice, setAdvice] = useState("");
 
     const token = localStorage.getItem("token");
     const payload = jwtDecode(token);
@@ -170,6 +171,15 @@ const Bug = () => {
             console.error(error);
           }
     }
+
+    const handleDebugAdvice = async () => {
+        try {
+            const text = await debugAdvice(description);
+            setAdvice(text);
+        } catch(error) {
+            console.error(error);
+        }
+    }
     
     return (
         <div>
@@ -254,6 +264,14 @@ const Bug = () => {
                 </div>
                 {error && <p className="mt-4 bg-red-500 p-2 text-white rounded-xl">{error}</p>}
             </form>
+            <div className='mt-4 mb-4'>
+                <button onClick={handleDebugAdvice} className='px-3 py-2 rounded-xl text-white bg-gradient-to-b from-blue-900 to-blue-700 font-black'>⚡Ask AI</button>
+                {advice && (
+                    <p className='mt-4 px-6 py-3 bg-gradient-to-tr from-orange-300 to-orange-200 rounded-2xl font-bold whitespace-pre-wrap'>
+                        {advice}
+                    </p>
+                )}
+            </div>
             <div>
                 <h1 className='text-2xl mb-2 font-bold'>Comments</h1>
                 <form onSubmit={handleAddComment} className='flex space-x-4'>
@@ -282,7 +300,7 @@ const Bug = () => {
                             </div>
                         ))}
                     </div>
-                ) : (<p>No comments yet</p>)}
+                ) : (<p className='p-4'>No comments yet</p>)}
             </div>
         </div>
     );

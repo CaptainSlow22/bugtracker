@@ -16,7 +16,7 @@ const ProjectLayout = () => {
         <ul className='mt-10 space-y-4'>
           <li className='font-bold text-2xl'><NavLink to={`/projects/${id}/dashboard`}>Dashboard</NavLink></li>
           <li className='font-bold text-2xl'><NavLink to={`/projects/${id}/bugs`}>Bugs</NavLink></li>
-          <li className='font-bold text-2xl'><NavLink to={`/projects/${id}/stats`}>Stats</NavLink></li>
+          <li className='font-bold text-2xl'><NavLink to={`/projects/${id}/stats`}>Statistics</NavLink></li>
         </ul>
       </nav>
 

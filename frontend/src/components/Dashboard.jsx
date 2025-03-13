@@ -69,7 +69,7 @@ const Dashboard = () => {
                 <div className="text-2xl font-bold">Project Members: </div>
                 <div className="flex">
                     {members.length > 0 ? (
-                        <div className="flex space-x-4 overflow-x-auto no-scrollbar w-150 p-2 text-nowrap">
+                        <div className="flex space-x-4 overflow-x-auto w-200 p-2 text-nowrap">
                             {members.map((member) => (
                                 <div key={member.id} className="flex space-x-2 bg-white rounded-full shadow-md px-3 py-2">
                                     <div className="font-black">{member.firstname[0]}{member.lastname[0]}</div>

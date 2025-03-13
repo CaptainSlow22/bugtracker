@@ -1,6 +1,6 @@
 import React, { useContext, useState, useEffect } from 'react'
 import { AuthContext } from './AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 
 const Login = () => {
     const [email, setEmail] = useState("");
@@ -58,8 +58,9 @@ const Login = () => {
                     {error}
                     </div>
                 )}
-            </form>            
+            </form>           
         </div>
+        <span>Don't have a member acconut? <NavLink to='/register' className='font-bold'>Register here</NavLink></span> 
     </div>
   )
 }
