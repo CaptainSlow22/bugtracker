@@ -1,9 +1,11 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import Footer from "./Footer"
+
 const Home = () => {
+
   return (
-    <div className="bg-gradient-to-t from-gray-200 to-gray-100">
+    <div className="bg-gradient-to-t from-gray-200 to-gray-100 min-h-screen">
       <div className="flex justify-between items-center py-6 px-32">
         <div className="text-3xl font-bold">
           <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="100" height="100" viewBox="0 0 64 64">
@@ -18,6 +20,36 @@ const Home = () => {
         <div className="text-center">
           <h1 className="text-8xl font-black mb-10">Track, Prioritize, and Fix Bugs Effortlessly</h1>
           <p className="text-2xl">Stay on top of your software issues with real-time tracking, seamless collaboration, and powerful reporting. Ship better software faster.</p>
+        </div>
+      </div>
+      <div className='p-20 space-y-8'>
+        <div className='flex items-center space-x-6'>
+          <img src='../../public/calendar.png' className='w-140 h-70 rounded-xl'/>
+          <div>
+            <p className='text-2xl font-bold mb-2'>📅 Calendar View – Stay on Top of Deadlines</p>
+            <p>Track bug reports and due dates with an intuitive calendar view. Plan your sprints efficiently, assign tasks, and never miss a critical fix.</p>
+          </div>
+        </div>
+        <div className='flex flex-row-reverse items-center space-x-6'>
+          <img src='../../public/stats.png' className='w-140 h-70 rounded-xl'/>
+          <div>
+            <p className='text-2xl font-bold mb-2'>📊 Statistics & Insights – Data-Driven Decisions</p>
+            <p>Gain valuable insights into your development process with real-time charts and analytics. Monitor bug trends, resolution times, and team performance to optimize workflow.</p>
+          </div>
+        </div>
+        <div className='flex items-center space-x-6'>
+          <img src='../../public/dashboard.png' className='w-140 h-70 rounded-xl'/>
+          <div>
+            <p className='text-2xl font-bold mb-2'>📂 Dashboard – Your Project at a Glance</p>
+            <p>Get a complete overview of your project in one place. See active issues, assigned tasks, and project progress with a clean, user-friendly interface.</p>
+          </div>
+        </div>
+        <div className='flex flex-row-reverse items-center space-x-6'>
+          <img src='../../public/bugs.png' className='w-140 h-70 rounded-xl'/>
+          <div>
+            <p className='text-2xl font-bold mb-2'>🐞 Bug List – Organized & Efficient Debugging</p>
+            <p>Easily track and manage all reported bugs. Filter, prioritize, and assign issues to streamline your team's debugging process and improve software quality.</p>
+          </div>
         </div>
       </div>
       <Footer/>

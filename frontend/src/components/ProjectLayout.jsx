@@ -17,6 +17,7 @@ const ProjectLayout = () => {
           <li className='font-bold text-2xl'><NavLink to={`/projects/${id}/dashboard`}>Dashboard</NavLink></li>
           <li className='font-bold text-2xl'><NavLink to={`/projects/${id}/bugs`}>Bugs</NavLink></li>
           <li className='font-bold text-2xl'><NavLink to={`/projects/${id}/stats`}>Statistics</NavLink></li>
+          <li className='font-bold text-2xl'><NavLink to={`/projects/${id}/calendar`}>Calendar</NavLink></li>
         </ul>
       </nav>
 

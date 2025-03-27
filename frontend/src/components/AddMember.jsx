@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { NavLink, useNavigate, useParams } from 'react-router-dom';
 
 const AddMember = () => {
     const {id} = useParams();
@@ -52,7 +52,8 @@ const AddMember = () => {
 
     return (
         <div>
-            <h1 className='text-3xl font-bold'>Add new member to project</h1>
+            <NavLink to={`/projects/${id}/dashboard`}>{'<'} Back to Dashboard</NavLink>
+            <h1 className='mt-4 text-3xl font-bold'>Add new member to project</h1>
             {allMembers.length > 0 ? (
                 <div className='bg-white p-6 mt-6 rounded-2xl w-1/2'>
                     {allMembers.map((member) => (

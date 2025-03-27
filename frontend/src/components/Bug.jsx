@@ -2,6 +2,7 @@ import { jwtDecode } from 'jwt-decode';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { debugAdvice } from '../lib/debugAdvice.js';
+import { NavLink } from 'react-router-dom';
 
 const Bug = () => {
     const { id: projectId, bugId } = useParams();
@@ -183,7 +184,8 @@ const Bug = () => {
     
     return (
         <div>
-            <div className='flex justify-between items-center'>
+            <NavLink to={`/projects/${projectId}/dashboard`}>{'<'} Back to Dashboard</NavLink>
+            <div className='mt-4 flex justify-between items-center'>
                 <h1 className='text-4xl font-black mb-8'>{title}</h1>
                 <button onClick={() => deleteBug(bugId)}>
                     <svg xmlns="http://www.w3.org/2000/svg"  color='red' fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-10">
@@ -211,7 +213,7 @@ const Bug = () => {
                         <input 
                             onChange={(e) => setDueDate(e.target.value)} 
                             type='date' 
-                            value={dueDate} 
+                            value={dueDate.split("T")[0]} 
                             className='bg-white p-2 rounded-xl shadow-inner' 
                         />
                     </div>
@@ -267,7 +269,7 @@ const Bug = () => {
             <div className='mt-4 mb-4'>
                 <button onClick={handleDebugAdvice} className='px-3 py-2 rounded-xl text-white bg-gradient-to-b from-blue-900 to-blue-700 font-black'>⚡Ask AI</button>
                 {advice && (
-                    <p className='mt-4 px-6 py-3 bg-gradient-to-tr from-orange-300 to-orange-200 rounded-2xl font-bold whitespace-pre-wrap'>
+                    <p className='h-100 overflow-x-auto mt-4 p-10 bg-gradient-to-tr from-orange-300 to-orange-200 rounded-2xl font-bold whitespace-pre-wrap'>
                         {advice}
                     </p>
                 )}
@@ -279,7 +281,7 @@ const Bug = () => {
                     <button className='mt-2 h-1/2 bg-green-500 p-2 rounded-2xl text-white font-bold' type='submit'>Comment</button>
                 </form>
                 {comments.length > 0 ? (
-                    <div className='mt-4 p-4 bg-white rounded-xl'>
+                    <div className='h-80 overflow-x-auto mt-4 p-4 bg-white rounded-xl'>
                         {comments.map((comment) => (
                             <div key={comment.id} className='flex space-x-6 p-4'>
                                 <div className='font-black text-xl p-2'>
