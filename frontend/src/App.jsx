@@ -13,6 +13,7 @@ import AddMember from './components/addMember';
 import AddBug from './components/AddBug';
 import Bug from './components/Bug';
 import Register from './components/Register';
+import Calendar from './components/Calendar';
 
 function App() {
   return (
@@ -31,6 +32,7 @@ function App() {
             <Route path='bugs/:bugId' element={<Bug />} />
             <Route path='stats' element={<Stats />} />
             <Route path='dashboard' element={<Dashboard />} />
+            <Route path='calendar'  element={<Calendar/>}/>
           </Route>
         </Routes>
       </BrowserRouter>

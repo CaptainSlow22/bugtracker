@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
+import { NavLink } from 'react-router-dom';
 
 const AddBug = () => {
     const { id } = useParams();
@@ -98,7 +99,8 @@ const AddBug = () => {
 
     return (
         <div>
-            <h1 className='text-3xl font-bold mb-8'>Report New Bug</h1>
+            <NavLink to={`/projects/${id}/bugs`}>{'<'} Back to Bugs</NavLink>
+            <h1 className='mt-4 text-3xl font-bold mb-8'>Report New Bug</h1>
             <form onSubmit={handleSubmit} className='flex bg-white rounded-2xl px-8 py-8 space-x-16 w-3/4'>
                 <div className='flex flex-col space-y-4'>
                     <input onChange={(e) => setTitle(e.target.value)} type='text' value={title} placeholder='Title' className='bg-gray-100 p-2 rounded-xl shadow-inner'/>
