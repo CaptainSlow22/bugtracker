@@ -9,7 +9,7 @@ import Bugs from './components/Bugs';
 import Stats from './components/Stats';
 import Dashboard from './components/Dashboard';
 import { AuthProvider } from './components/AuthContext';
-import AddMember from './components/addMember';
+import AddMember from './components/AddMember';
 import AddBug from './components/AddBug';
 import Bug from './components/Bug';
 import Register from './components/Register';

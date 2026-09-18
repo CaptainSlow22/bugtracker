@@ -12,8 +12,8 @@ export async function debugAdvice(description) {
 
     return advice;
   } catch (error) {
-    console.error("Error fetching financial advice:", error);
-    return "Sorry, I couldn't fetch the financial advice at this moment.";
+    console.error("Error fetching advice:", error);
+    return "Sorry, I couldn't fetch the advice at this moment.";
   }
 }
 
@@ -23,10 +23,10 @@ export async function getGroqChatCompletion(description) {
       messages: [
         {
           role: "user",
-          content: `Guide a developer in solving this technical problem step by step: ${description}`,
+          content: `Guide a developer in solving this technical problem step by step. Get straight to the point, no introduction and keep the text clean with no styling: ${description}`,
         },
       ],
-      model: "llama3-8b-8192", 
+      model: "groq/compound-mini", 
     });
   } catch (error) {
     console.error("Error fetching chat completion from Groq:", error);
