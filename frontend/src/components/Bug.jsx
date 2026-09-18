@@ -296,7 +296,7 @@ const Bug = () => {
                                             </svg>
                                         </button>
                                     </div>
-                                    <p className='font-bold text-lg'>{comment.content}</p>
+                                    <p className='text-lg'>{comment.content}</p>
                                     <p className='font-bold text-sm text-gray-600'>{comment.updatedat.split("T")[0]} {comment.updatedat.split("T")[1].substring(0,5)}</p>
                                 </div>
                             </div>

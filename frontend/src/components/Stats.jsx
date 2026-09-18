@@ -192,7 +192,7 @@ const Stats = () => {
             <Bar data={bugResolutionData} />
           </div>
           <div>
-            <h3 className='text-2xl font-bold mb-3'>Bugs by Member</h3>
+            <h3 className='text-2xl font-bold mb-3'>Bugs distribution by Member</h3>
             <Bar data={bugAssignmentData} />
           </div>
         </div>
