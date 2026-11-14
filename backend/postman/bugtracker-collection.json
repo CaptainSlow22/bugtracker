@@ -1,0 +1,446 @@
+{
+  "info": {
+    "name": "Bugtracker API",
+    "description": "Postman requests for the bugtracker API. Register or log in first. Authenticated requests use the saved token. After creating a project or bug, response scripts save its ID for subsequent requests.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "memberId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "projectId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "bugId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "commentId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "inviteMemberId",
+      "value": "2",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register member",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/members/register",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Alex\",\n  \"lastName\": \"Morgan\",\n  \"email\": \"alex.morgan@example.com\",\n  \"password\": \"SecurePassword123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Member registered', () => pm.response.to.have.status(201));",
+                  "const data = pm.response.json();",
+                  "if (data.id !== undefined) pm.collectionVariables.set('memberId', String(data.id));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Log in",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/members/login",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alex.morgan@example.com\",\n  \"password\": \"SecurePassword123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login successful', () => pm.response.to.have.status(200));",
+                  "const data = pm.response.json();",
+                  "if (data.token) pm.collectionVariables.set('token', data.token);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ],
+      "description": "Registration and login are public. Successful login saves the bearer token to the collection variable."
+    },
+    {
+      "name": "Members",
+      "item": [
+        {
+          "name": "List members in my projects",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/members?page=1&limit=25"
+          },
+          "response": []
+        },
+        {
+          "name": "Get member by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/members/{{memberId}}"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Projects",
+      "item": [
+        {
+          "name": "Create project",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/projects/newProject",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Website Redesign\",\n  \"description\": \"Track bugs and tasks for the company website redesign.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Project created', () => pm.response.to.have.status(201));",
+                  "const data = pm.response.json();",
+                  "if (data.id !== undefined) pm.collectionVariables.set('projectId', String(data.id));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List my projects",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/projects?page=1&limit=25"
+          },
+          "response": []
+        },
+        {
+          "name": "List project members",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/projects/{{projectId}}/members"
+          },
+          "response": []
+        },
+        {
+          "name": "Add member to project (owner only)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/projects/{{projectId}}/addMember/{{inviteMemberId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Remove member from project (owner only)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/projects/{{projectId}}/deleteMember/{{inviteMemberId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete project (owner only)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/projects/{{projectId}}",
+            "description": "Deletes the project and its bugs, comments, and memberships."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Bugs",
+      "item": [
+        {
+          "name": "List bugs visible to me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/bugs?page=1&limit=25"
+          },
+          "response": []
+        },
+        {
+          "name": "List bugs in project",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/projects/{{projectId}}/bugs?page=1&limit=25&filter=login"
+          },
+          "response": []
+        },
+        {
+          "name": "Create bug",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/projects/{{projectId}}/bugs",
+            "description": "The API sets reporter from the authenticated member. The assignee must be a project member. Allowed statuses: TO DO, IN PROGRESS, DONE. Allowed priorities: LOW, MEDIUM, HIGH.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Login button does not respond\",\n  \"description\": \"Clicking the login button on the sign-in page produces no response.\",\n  \"status\": \"TO DO\",\n  \"priority\": \"HIGH\",\n  \"asignee\": \"{{memberId}}\",\n  \"dueDate\": \"2026-12-15\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Bug created', () => pm.response.to.have.status(201));",
+                  "const data = pm.response.json();",
+                  "if (data.id !== undefined) pm.collectionVariables.set('bugId', String(data.id));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get bug",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/projects/{{projectId}}/bugs/{{bugId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Update bug",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/projects/{{projectId}}/bugs/{{bugId}}",
+            "description": "This endpoint expects the full update body. The reporter is not editable here.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Login button is unresponsive\",\n  \"description\": \"Clicking the login button on the sign-in page produces no response. Reproduced in Chrome.\",\n  \"status\": \"IN PROGRESS\",\n  \"priority\": \"HIGH\",\n  \"asignee\": \"{{memberId}}\",\n  \"dueDate\": \"2026-12-18\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete bug",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/projects/{{projectId}}/bugs/{{bugId}}"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Comments",
+      "item": [
+        {
+          "name": "List comments visible to me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/comments?page=1&limit=25"
+          },
+          "response": []
+        },
+        {
+          "name": "List comments on bug",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/projects/{{projectId}}/bugs/{{bugId}}/comments"
+          },
+          "response": []
+        },
+        {
+          "name": "Create comment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/projects/{{projectId}}/bugs/{{bugId}}/comments",
+            "description": "The API sets the author from the authenticated member.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"I can reproduce this in Chrome on the latest build.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Comment created', () => pm.response.to.have.status(201));",
+                  "const data = pm.response.json();",
+                  "if (data.id !== undefined) pm.collectionVariables.set('commentId', String(data.id));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Update my comment",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/projects/{{projectId}}/bugs/{{bugId}}/comments/{{commentId}}",
+            "description": "Only the author can update their comment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Reproduced on the latest build in Chrome and Firefox.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete my comment",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/projects/{{projectId}}/bugs/{{bugId}}/comments/{{commentId}}",
+            "description": "Only the author can delete their comment."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

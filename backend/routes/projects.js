@@ -1,243 +1,201 @@
 import Router from "express";
 import pool from "../database/pgPool.js";
+import { validateFields, validateId, parsePagination, readFilter } from "./validation.js";
+import { handleRouteError } from "./routeError.js";
+import { requireAuth, requireProjectMember, requireProjectOwner } from "./auth.js";
 const projectsRouter = Router();
 
+projectsRouter.use(requireAuth);
+
 projectsRouter.post("/newProject", async (req, res) => {
+    let client;
     try {
-        const {title, description} = req.body;
+        const { title, description } = validateFields(req.body, {
+            title: { type: "string", required: true, min: 1, max: 120 },
+            description: { type: "string", required: true, min: 1, max: 10000 },
+        });
 
-        if(!title || !description) {
-            return res.status(400).send("Please provide the title");
-        }
-
-        const newProject = await pool.query("INSERT INTO projects(title, description) VALUES ($1, $2) RETURNING *", [title, description]);
-
-        if(!newProject) {
-            return res.status(500).send("Error creating new project");
-        }
-
-        const result = newProject.rows[0];
-
-        return res.status(201).send(result);
+        client = await pool.connect();
+        await client.query("BEGIN");
+        const newProject = await client.query("INSERT INTO projects(title, description) VALUES ($1, $2) RETURNING id, title, description", [title, description]);
+        await client.query("INSERT INTO projects_members(projectId, memberId, role) VALUES ($1, $2, 'owner')", [newProject.rows[0].id, req.user.memberId]);
+        await client.query("COMMIT");
+        return res.status(201).json(newProject.rows[0]);
     } catch(e) {
-        console.error(e);
-        return res.status(500).send("Internal server error");
+        if (client) {
+            try { await client.query("ROLLBACK"); } catch (rollbackError) {
+                console.error("[projects.create.rollback]", { code: rollbackError?.code, name: rollbackError?.name });
+            }
+        }
+        return handleRouteError(e, res, "projects.create");
+    } finally {
+        client?.release();
     }
 });
+
+projectsRouter.use("/:projectId", requireProjectMember(pool));
 
 projectsRouter.get("/", async (req, res) => {
     try {
-        const projects = await pool.query("SELECT * FROM projects", []);
-
-        if(!projects) {
-            return res.status(404).send("Projects not found");
-        }
-
-        const result = projects.rows;
-
-        return res.status(200).send(result);
+        const { page, limit, offset } = parsePagination(req.query);
+        const projects = await pool.query(
+            `SELECT p.id, p.title, p.description, pm.role
+             FROM projects p JOIN projects_members pm ON pm.projectId = p.id
+             WHERE pm.memberId = $1
+             ORDER BY p.id DESC LIMIT $2 OFFSET $3`,
+            [req.user.memberId, limit, offset]
+        );
+        return res.status(200).json({ page, limit, projects: projects.rows });
     } catch(e) {
-        console.error(e);
-        return res.status(500).send("Internal server error");
+        return handleRouteError(e, res, "projects.list");
     }
 });
 
-projectsRouter.delete("/:id", async (req, res) => {
+projectsRouter.delete("/:id", requireProjectOwner, async (req, res) => {
+    let client;
     try {
         const id = req.params.id;
 
-        if(!id) {
-            return res.status(400).send("Please provide the id");
+        const projectId = validateId(id, "id");
+
+        client = await pool.connect();
+        await client.query("BEGIN");
+        await client.query("DELETE FROM comments WHERE bugId IN (SELECT id FROM bugs WHERE projectId = $1)", [projectId]);
+        await client.query("DELETE FROM bugs WHERE projectId = $1", [projectId]);
+        await client.query("DELETE FROM projects_members WHERE projectId = $1", [projectId]);
+        const deletedProject = await client.query("DELETE FROM projects WHERE id = $1 RETURNING id, title, description", [projectId]);
+
+        if(!deletedProject.rowCount) {
+            await client.query("ROLLBACK");
+            return res.status(404).json({ error: "Project not found" });
         }
-
-        const deletedProject = await pool.query("DELETE FROM projects WHERE id = $1 RETURNING *", [id]);
-
-        if(!deletedProject) {
-            return res.status(404).send("User not found");
-        }
-
-        const result = deletedProject.rows[0];
-
-        return res.status(200).send(result);
+        await client.query("COMMIT");
+        return res.status(200).json(deletedProject.rows[0]);
     } catch(e) {
-        console.error(e);
-        return res.status(500).send("Internal server error");
+        if (client) {
+            try { await client.query("ROLLBACK"); } catch (rollbackError) {
+                console.error("[projects.delete.rollback]", { code: rollbackError?.code, name: rollbackError?.name });
+            }
+        }
+        return handleRouteError(e, res, "projects.delete");
+    } finally {
+        client?.release();
     }
 });
 
-projectsRouter.post("/:projectId/addMember/:memberId", async (req, res) => {
+projectsRouter.post("/:projectId/addMember/:memberId", requireProjectOwner, async (req, res) => {
     try {
-        const projectId = req.params.projectId;
-        const memberId = req.params.memberId;
+        const projectId = validateId(req.params.projectId, "projectId");
+        const memberId = validateId(req.params.memberId, "memberId");
 
-        if(!projectId || !memberId) {
-            return res.status(400).send("Please provide all required fields: projectId, memberId");
-        }
-
-        const addedMember = await pool.query("INSERT INTO projects_members(projectId, memberId) VALUES ($1, $2) RETURNING *", [projectId, memberId]);
+        const addedMember = await pool.query("INSERT INTO projects_members(projectId, memberId, role) VALUES ($1, $2, 'member') RETURNING projectId, memberId, role", [projectId, memberId]);
         
-        if(!addedMember) {
-            return res.status(500).send("Error adding member to project");
-        }
-
-        const result = addedMember.rows[0];
-
-        return res.status(201).send(result);
+        return res.status(201).json(addedMember.rows[0]);
     } catch(e) {
-        console.error(e);
-        return res.status(500).send("Internal server error");
+        return handleRouteError(e, res, "projects.addMember");
     }
 });
 
-projectsRouter.delete("/:projectId/deleteMember/:memberId", async (req, res) => {
+projectsRouter.delete("/:projectId/deleteMember/:memberId", requireProjectOwner, async (req, res) => {
     try {
-        const projectId = req.params.projectId;
-        const memberId = req.params.memberId;
+        const projectId = validateId(req.params.projectId, "projectId");
+        const memberId = validateId(req.params.memberId, "memberId");
 
-        if(!projectId || !memberId) {
-            return res.status(400).send("Please provide all required fields: projectId, memberId");
-        }
-
-        const deletedMember = await pool.query("DELETE FROM projects_members WHERE projectId = $1 AND memberId = $2 RETURNING *", [projectId, memberId]);
+        if (memberId === req.user.memberId) return res.status(400).json({ error: "Project owner cannot remove themselves" });
+        const deletedMember = await pool.query("DELETE FROM projects_members WHERE projectId = $1 AND memberId = $2 AND role <> 'owner' RETURNING projectId, memberId", [projectId, memberId]);
         
-        if(!deletedMember) {
-            return res.status(500).send("Error deleting member from project");
-        }
-
-        const result = deletedMember.rows[0];
-
-        return res.status(200).send(result);
+        if(!deletedMember.rowCount) return res.status(404).json({ error: "Project membership not found" });
+        return res.status(200).json(deletedMember.rows[0]);
     } catch(e) {
-        console.error(e);
-        return res.status(500).send("Internal server error");
+        return handleRouteError(e, res, "projects.removeMember");
     }
 });
 
 projectsRouter.get("/:projectId/members", async (req, res) => {
     try {
-        const projectId = req.params.projectId;
-
-        if(!projectId) {
-            return res.status(400).send("Please provide projectId");
-        }
+        const projectId = validateId(req.params.projectId, "projectId");
 
         const projectMembers = await pool.query("SELECT m.id, m.firstName, m.lastName FROM members m INNER JOIN projects_members pm ON pm.memberId = m.id WHERE pm.projectId = $1", [projectId]);
 
-        if(!projectMembers) {
-            return res.status(404).send("No members assigned");
-        }
-
-        const result = projectMembers.rows;
-
-        return res.status(200).send(result);
+        return res.status(200).json(projectMembers.rows);
     } catch(e) {
-        console.error(e);
-        return res.status(500).send("Internal server error");
+        return handleRouteError(e, res, "projects.listMembers");
     }
 });
 
 projectsRouter.post("/:projectId/bugs", async (req, res) => {
     try {
-        const projectId = req.params.projectId;
-        const {title, description, status, priority, asignee, reporter, dueDate} = req.body;
+        const projectId = validateId(req.params.projectId, "projectId");
+        const { title, description, status, priority, asignee, dueDate } = validateFields(req.body, {
+            title: { type: "string", required: true, min: 1, max: 200 },
+            description: { type: "string", required: true, min: 1, max: 20000 },
+            status: { type: "string", required: true, min: 1, max: 20, values: ["TO DO", "IN PROGRESS", "DONE"] },
+            priority: { type: "string", required: true, min: 1, max: 10, values: ["LOW", "MEDIUM", "HIGH"] },
+            asignee: { type: "id", required: true },
+            dueDate: { type: "date", required: true },
+        });
 
-        if(!projectId) {
-            return res.status(400).send("Please provide projectId");
-        }
+        const assignedMember = await pool.query(
+            "SELECT 1 FROM projects_members WHERE projectId = $1 AND memberId = $2",
+            [projectId, asignee]
+        );
+        if (!assignedMember.rowCount) return res.status(400).json({ error: "Assignee must belong to the project" });
         
-        if(!title || !description || !status || !priority || !asignee || !reporter || !dueDate) {
-            return res.status(400).send("Please provide all required fields: title, description, status, priority, asignee, reporter, dueDate");
-        }
-        
-        const newBug = await pool.query("INSERT INTO bugs(projectId, title, description, status, priority, asignee, reporter, dueDate) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *",[projectId, title, description, status, priority, asignee, reporter, dueDate]);
+        const newBug = await pool.query("INSERT INTO bugs(projectId, title, description, status, priority, asignee, reporter, dueDate) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, projectId, title, description, status, priority, asignee, reporter, dueDate",[projectId, title, description, status, priority, asignee, req.user.memberId, dueDate]);
 
-        if(!newBug) {
-            return res.status(500).send("Error adding new bug");
-        }
-
-        const result = newBug.rows[0];
-
-        return res.status(201).send(result);
+        return res.status(201).json(newBug.rows[0]);
     } catch(e) {
-        console.error(e);
-        return res.status(500).send("Internal server error");
+        return handleRouteError(e, res, "bugs.create");
     }
 });
 
 projectsRouter.put("/:projectId/bugs/:id", async (req, res) => {
     try {
-        const projectId = req.params.projectId;
-        const id = req.params.id;
+        const projectId = validateId(req.params.projectId, "projectId");
+        const id = validateId(req.params.id, "id");
+        const { title, description, status, priority, asignee, dueDate } = validateFields(req.body, {
+            title: { type: "string", required: true, min: 1, max: 200 },
+            description: { type: "string", required: true, min: 1, max: 20000 },
+            status: { type: "string", required: true, min: 1, max: 20, values: ["TO DO", "IN PROGRESS", "DONE"] },
+            priority: { type: "string", required: true, min: 1, max: 10, values: ["LOW", "MEDIUM", "HIGH"] },
+            asignee: { type: "id", required: true },
+            dueDate: { type: "date", required: true },
+        });
 
-        const {title, description, status, priority, asignee, dueDate} = req.body;
-
-        if(!projectId) {
-            return res.status(400).send("Please provide projectId");
-        }
-
-        if(!id) {
-            return res.status(400).send("Please provide the id for the bug");
-        }
+        const assignedMember = await pool.query(
+            "SELECT 1 FROM projects_members WHERE projectId = $1 AND memberId = $2",
+            [projectId, asignee]
+        );
+        if (!assignedMember.rowCount) return res.status(400).json({ error: "Assignee must belong to the project" });
         
-        if(!title || !description || !status || !priority || !asignee || !dueDate) {
-            return res.status(400).send("Please provide all required fields: title, description, status, priority, asignee, dueDate");
-        }
-        
-        const updatedBug = await pool.query("UPDATE bugs SET title = $1, description = $2, status = $3, priority = $4, asignee = $5, dueDate = $6 WHERE id = $7 RETURNING *",[title, description, status, priority, asignee, dueDate, id]);
-
-        if(!updatedBug) {
-            return res.status(500).send("Error updating bug");
-        }
-
-        const result = updatedBug.rows[0];
-
-        return res.status(201).send(result);
+        const updatedBug = await pool.query("UPDATE bugs SET title = $1, description = $2, status = $3, priority = $4, asignee = $5, dueDate = $6 WHERE projectId = $7 AND id = $8 RETURNING id, projectId, title, description, status, priority, asignee, reporter, dueDate",[title, description, status, priority, asignee, dueDate, projectId, id]);
+        if(!updatedBug.rowCount) return res.status(404).json({ error: "Bug not found" });
+        return res.status(200).json(updatedBug.rows[0]);
     } catch(e) {
-        console.error(e);
-        return res.status(500).send("Internal server error");
+        return handleRouteError(e, res, "bugs.update");
     }
 });
 
 projectsRouter.delete("/:projectId/bugs/:id", async (req, res) => {
     try {
-        const projectId = req.params.projectId;
-        const id = req.params.id;
-
-        if(!projectId) {
-            return res.status(400).send("Please provide projectId");
-        }
-
-        if(!id) {
-            return res.status(400).send("Please provide the id for the bug");
-        }
+        const projectId = validateId(req.params.projectId, "projectId");
+        const id = validateId(req.params.id, "id");
         
-        const deletedBug = await pool.query("DELETE FROM bugs WHERE id = $1 RETURNING *",[id]);
-
-        if(!deletedBug) {
-            return res.status(500).send("Error deleting bug");
-        }
-
-        const result = deletedBug.rows[0];
-
-        return res.status(200).send(result);
+        const deletedBug = await pool.query("DELETE FROM bugs WHERE projectId = $1 AND id = $2 RETURNING id, projectId, title, description, status, priority, asignee, reporter, dueDate",[projectId, id]);
+        if(!deletedBug.rowCount) return res.status(404).json({ error: "Bug not found" });
+        return res.status(200).json(deletedBug.rows[0]);
     } catch(e) {
-        console.error(e);
-        return res.status(500).send("Internal server error");
+        return handleRouteError(e, res, "bugs.delete");
     }
 });
 
 projectsRouter.get("/:projectId/bugs", async (req, res) => {
     try {
-        const projectId = req.params.projectId;
-        const page = parseInt(req.query.page);
-        const limit = parseInt(req.query.limit);
-        const filter = req.query.filter;
+        const projectId = validateId(req.params.projectId, "projectId");
+        const { page, limit, offset } = parsePagination(req.query);
+        const filter = readFilter(req.query.filter);
 
-        if (!projectId) {
-            return res.status(400).send("Please provide projectId");
-        }
-
-        let query = "SELECT * FROM bugs WHERE projectId = $1";
+        let query = "SELECT id, projectId, title, description, status, priority, asignee, reporter, dueDate FROM bugs WHERE projectId = $1";
         let queryParams = [projectId];
 
         if (filter) {
@@ -245,165 +203,101 @@ projectsRouter.get("/:projectId/bugs", async (req, res) => {
             queryParams.push(`%${filter}%`);
         }
 
-        if (!isNaN(page) && !isNaN(limit) && page > 0 && limit > 0) {
-            query += " LIMIT $" + (queryParams.length + 1) + " OFFSET $" + (queryParams.length + 2);
-            queryParams.push(limit, (page - 1) * limit);
-        }
+        query += " ORDER BY id DESC LIMIT $" + (queryParams.length + 1) + " OFFSET $" + (queryParams.length + 2);
+        queryParams.push(limit, offset);
 
         const bugs = await pool.query(query, queryParams);
 
-        if (!bugs.rows.length) {
-            return res.status(404).send("No bugs found");
-        }
-
-        return res.status(200).send({ page: page || "all", bugs: bugs.rows });
+        return res.status(200).json({ page, limit, bugs: bugs.rows });
     } catch (e) {
-        console.error(e);
-        return res.status(500).send("Internal server error");
+        return handleRouteError(e, res, "bugs.list");
     }
 });
 
 
 projectsRouter.get("/:projectId/bugs/:bugId", async (req, res) => {
     try {
-        const projectId = req.params.projectId;
-        const bugId = req.params.bugId;
+        const projectId = validateId(req.params.projectId, "projectId");
+        const bugId = validateId(req.params.bugId, "bugId");
 
-        if(!projectId || !bugId) {
-            return res.status(400).send("Please provide all required fields");
-        }
+        const bug = await pool.query("SELECT id, projectId, title, description, status, priority, asignee, reporter, dueDate FROM bugs WHERE projectId = $1 AND id = $2", [projectId, bugId]);
 
-        const bug = await pool.query("SELECT * FROM bugs WHERE projectId = $1 AND id = $2", [projectId, bugId]);
-
-        if(!bug) {
-            return res.status(404).send("No bug found");
-        }
-
-        const result = bug.rows[0];
-
-        return res.status(200).send(result);
+        if(!bug.rowCount) return res.status(404).json({ error: "Bug not found" });
+        return res.status(200).json(bug.rows[0]);
     } catch(error) {
-        return res.status(500).send("Internal server error");
+        return handleRouteError(error, res, "bugs.get");
     }
 });
 
 projectsRouter.post("/:projectId/bugs/:bugId/comments", async (req, res) => {
     try {
-        const projectId = req.params.projectId;
-        const bugId = req.params.bugId;
-        const {memberId, content} = req.body;
+        const projectId = validateId(req.params.projectId, "projectId");
+        const bugId = validateId(req.params.bugId, "bugId");
+        const { content } = validateFields(req.body, {
+            content: { type: "string", required: true, min: 1, max: 5000 },
+        });
 
-        if(!projectId || !bugId) {
-            return res.status(400).send("Please provide projectId");
-        }
+        const newComment = await pool.query("INSERT INTO comments(bugId, memberId, content) SELECT b.id, $3, $4 FROM bugs b WHERE b.projectId = $1 AND b.id = $2 RETURNING id, bugId, memberId, content, createdAt, updatedAt",[projectId, bugId, req.user.memberId, content]);
 
-        if(!bugId) {
-            return res.status(400).send("Please provide bugId");
-        }
-
-        if(!memberId || !content) {
-            return res.status(400).send("Please provide all required fields: memberId, content");
-        }
-
-        const newComment = await pool.query("INSERT INTO comments(bugId, memberId, content) VALUES ($1, $2, $3) RETURNING *",[bugId, memberId, content]);
-
-        if(!newComment) {
-            return res.status(500).send("Error creating new comment");
-        }
+        if(!newComment.rowCount) return res.status(404).json({ error: "Bug not found in project" });
 
         const result = newComment.rows[0];
 
-        return res.status(201).send(result);
+        return res.status(201).json(result);
     } catch(e) {
-        console.error(e);
-        return res.status(500).send("Internal server error");
+        return handleRouteError(e, res, "comments.create");
     }
 });
 
 projectsRouter.put("/:projectId/bugs/:bugId/comments/:id", async (req, res) => {
     try {
-        const projectId = req.params.projectId;
-        const bugId = req.params.bugId;
-        const id = req.params.id;
-        const {content} = req.body;
+        const projectId = validateId(req.params.projectId, "projectId");
+        const bugId = validateId(req.params.bugId, "bugId");
+        const id = validateId(req.params.id, "id");
+        const { content } = validateFields(req.body, {
+            content: { type: "string", required: true, min: 1, max: 5000 },
+        });
 
-        if(!projectId) {
-            return res.status(400).send("Please provide projectId");
-        }
+        const updatedComment = await pool.query("UPDATE comments c SET content = $1 FROM bugs b WHERE c.id = $2 AND c.bugId = b.id AND b.projectId = $3 AND b.id = $4 AND c.memberId = $5 RETURNING c.id, c.bugId, c.memberId, c.content, c.createdAt, c.updatedAt",[content, id, projectId, bugId, req.user.memberId]);
 
-        if(!bugId) {
-            return res.status(400).send("Please provide projectId");
-        }
-
-        if(!id) {
-            return res.status(400).send("Please provide the id of the comment");
-        }
-
-        if(!content) {
-            return res.status(400).send("Please provide the content");
-        }
-
-        const updatedComment = await pool.query("UPDATE comments SET content = $1 WHERE id = $2 RETURNING *",[content, id]);
-
-        if(!updatedComment) {
-            return res.status(404).send("Comment not found");
-        }
+        if(!updatedComment.rowCount) return res.status(404).json({ error: "Comment not found" });
 
         const result = updatedComment.rows[0];
 
-        return res.status(201).send(result);
+        return res.status(200).json(result);
     } catch(e) {
-        console.error(e);
-        return res.status(500).send("Internal server error");
+        return handleRouteError(e, res, "comments.update");
     }
 });
 
 projectsRouter.delete("/:projectId/bugs/:bugId/comments/:id", async (req, res) => {
     try {
-        const projectId = req.params.projectId;
-        const bugId = req.params.bugId;
-        const id = req.params.id;
+        const projectId = validateId(req.params.projectId, "projectId");
+        const bugId = validateId(req.params.bugId, "bugId");
+        const id = validateId(req.params.id, "id");
 
-        if(!projectId || !bugId || !id) {
-            return res.status(400).send("Please provide projectId, bugId and comment id");
-        }
+        const deletedComment = await pool.query("DELETE FROM comments c USING bugs b WHERE c.id = $1 AND c.bugId = b.id AND b.projectId = $2 AND b.id = $3 AND c.memberId = $4 RETURNING c.id, c.bugId, c.memberId, c.content, c.createdAt, c.updatedAt",[id, projectId, bugId, req.user.memberId]);
 
-        const deletedComment = await pool.query("DELETE FROM comments WHERE id = $1 RETURNING *",[id]);
-
-        if(!deletedComment) {
-            return res.status(404).send("Comment not found");
-        }
+        if(!deletedComment.rowCount) return res.status(404).json({ error: "Comment not found" });
 
         const result = deletedComment.rows[0];
 
-        return res.status(200).send(result);
+        return res.status(200).json(result);
     } catch(e) {
-        console.error(e);
-        return res.status(500).send("Internal server error");
+        return handleRouteError(e, res, "comments.delete");
     }
 });
 
 projectsRouter.get("/:projectId/bugs/:bugId/comments", async (req, res) => {
     try {
-        const projectId = req.params.projectId;
-        const bugId = req.params.bugId;
+        const projectId = validateId(req.params.projectId, "projectId");
+        const bugId = validateId(req.params.bugId, "bugId");
 
-        if(!projectId || !bugId) {
-            return res.status(400).send("Please provide projectId and bugId");
-        }
+        const comments = await pool.query("SELECT c.id, c.memberid, c.content, m.firstName, m.lastName, c.createdAt, c.updatedAt FROM comments c INNER JOIN members m ON m.id = c.memberId INNER JOIN bugs b ON b.id = c.bugId WHERE b.projectId = $1 AND b.id = $2 ORDER BY c.createdAt ASC",[projectId, bugId]);
 
-        const comments = await pool.query("SELECT c.id, c.memberid, c.content, m.firstName, m.lastName, c.createdAt, c.updatedAt FROM comments c INNER JOIN members m ON m.id = c.memberId WHERE bugId = $1",[bugId]);
-
-        if(!comments) {
-            return res.status(404).send("Comments not found");
-        }
-
-        const result = comments.rows;
-
-        return res.status(200).send(result);
+        return res.status(200).json(comments.rows);
     } catch(e) {
-        console.error(e);
-        return res.status(500).send("Internal server error");
+        return handleRouteError(e, res, "comments.list");
     }
 });
 
