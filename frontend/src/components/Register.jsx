@@ -1,65 +1,53 @@
-import React, { useState } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom';
+import React, { useState } from "react";
+import { NavLink, useNavigate } from "react-router-dom";
+import { apiRequest } from "../lib/api";
 
-const Register = () => {
-    const [firstName, setFirstName] = useState("");
-    const [lastName, setLastName] = useState("");
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [error, setError] = useState("");
+export default function Register() {
+  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", password: "" });
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const navigate = useNavigate();
+  const update = (field) => (event) => setForm((current) => ({ ...current, [field]: event.target.value }));
 
-    const navigate = useNavigate();
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        
-        try {
-            const res = await fetch("http://localhost:8080/members/register", {
-                method: "POST",
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    firstName,
-                    lastName,
-                    email,
-                    password
-                })
-            });
-            
-            if(res.ok) {
-                alert("Member registered successfully!");
-                navigate("/login");
-            }
-
-        } catch(error) {
-            setError("Please entry all the required fields!");
-            console.log(error);
-        }
-      };
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setError("");
+    setSuccess("");
+    setSubmitting(true);
+    try {
+      await apiRequest("/members/register", { method: "POST", auth: false, body: form });
+      setSuccess("Account created. You can now sign in.");
+      navigate("/login", { replace: true, state: { message: "Account created. Please sign in." } });
+    } catch (requestError) {
+      setError(requestError.message || "Registration failed.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
-    <div className='bg-gray-100 flex flex-col space-y-8 h-screen justify-center items-center'>
-        <div className='text-4xl font-black'>
-            <h1>Sign up for a member account</h1>
-        </div>
-        <div className='bg-white shadow-lg p-10 rounded-xl'>
-            <form onSubmit={handleSubmit} className='flex flex-col space-y-8'>
-                <input onChange={(e) => setFirstName(e.target.value)} type='text' placeholder='First Name' className='p-2 shadow-inne bg-gray-100 w-[300px] rounded-xl' />
-                <input onChange={(e) => setLastName(e.target.value)} type='text' placeholder='Last Name' className='p-2 shadow-inne bg-gray-100 w-[300px] rounded-xl' />
-                <input onChange={(e) => setEmail(e.target.value)} type="email" placeholder="Email" className="p-2 shadow-inne bg-gray-100 w-[300px] rounded-xl" />
-                <input onChange={(e) => setPassword(e.target.value)} type="password" placeholder="Password" className="p-2 shadow-inner bg-gray-100 w-[300px] rounded-xl"/>
-                <button className='px-4 py-2 bg-blue-700 text-white font-bold rounded-full'>Sign Up</button>
-                {error && (
-                    <div className="bg-red-500 text-white w-fit text-sm py-1 px-3 rounded-md mt-2">
-                    {error}
-                    </div>
-                )}
-            </form>         
-        </div>
-        <span>Already have an account? <NavLink to='/login' className='font-bold'>Log in</NavLink></span>   
-    </div>
-  )
+    <main className="bg-gray-100 flex flex-col gap-8 min-h-screen justify-center items-center p-6">
+      <h1 className="text-4xl font-black text-center">Sign up for a member account</h1>
+      <form onSubmit={handleSubmit} className="bg-white shadow-lg p-10 rounded-xl flex flex-col gap-5 w-full max-w-md">
+        <label className="flex flex-col gap-2">First name
+          <input autoComplete="given-name" required maxLength={80} value={form.firstName} onChange={update("firstName")} className="p-2 bg-gray-100 rounded-xl" />
+        </label>
+        <label className="flex flex-col gap-2">Last name
+          <input autoComplete="family-name" required maxLength={80} value={form.lastName} onChange={update("lastName")} className="p-2 bg-gray-100 rounded-xl" />
+        </label>
+        <label className="flex flex-col gap-2">Email
+          <input autoComplete="email" required maxLength={254} type="email" value={form.email} onChange={update("email")} className="p-2 bg-gray-100 rounded-xl" />
+        </label>
+        <label className="flex flex-col gap-2">Password
+          <input autoComplete="new-password" required minLength={12} maxLength={72} type="password" value={form.password} onChange={update("password")} className="p-2 bg-gray-100 rounded-xl" />
+          <span className="text-sm text-gray-600">Use at least 12 characters.</span>
+        </label>
+        <button disabled={submitting} className="px-4 py-2 bg-blue-700 text-white font-bold rounded-full">{submitting ? "Creating account…" : "Sign Up"}</button>
+        {error && <p role="alert" className="bg-red-100 text-red-800 p-3 rounded-lg">{error}</p>}
+        {success && <p role="status" className="bg-green-100 text-green-800 p-3 rounded-lg">{success}</p>}
+      </form>
+      <span>Already have an account? <NavLink to="/login" className="font-bold">Log in</NavLink></span>
+    </main>
+  );
 }
-
-export default Register

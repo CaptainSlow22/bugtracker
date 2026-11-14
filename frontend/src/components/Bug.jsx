@@ -1,311 +1,195 @@
-import { jwtDecode } from 'jwt-decode';
-import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { debugAdvice } from '../lib/debugAdvice.js';
-import { NavLink } from 'react-router-dom';
+import React, { useCallback, useEffect, useState } from "react";
+import { NavLink, useNavigate, useParams } from "react-router-dom";
+import { apiRequest } from "../lib/api";
+import { debugAdvice } from "../lib/groqAI";
+import { useAuth } from "./AuthContext";
 
-const Bug = () => {
-    const { id: projectId, bugId } = useParams();
-    const [title, setTitle] = useState("");
-    const [description, setDescription] = useState("");
-    const [dueDate, setDueDate] = useState("");
-    const [status, setStatus] = useState("");
-    const [priority, setPriority] = useState("");
-    const [asignee, setAsignee] = useState("");
-    const [asignees, setAsignees] = useState([]);
-    const [comments, setComments] = useState([]);
-    const [content, setContent] = useState("");
-    const [error, setError] = useState("");
-    const [advice, setAdvice] = useState("");
-
-    const token = localStorage.getItem("token");
-    const payload = jwtDecode(token);
-    const memberId = payload.memberId;
-
-    const navigate = useNavigate();
-
-    useEffect(() => {
-        const fetchBug = async () => {
-            try {
-                const res = await fetch(`http://localhost:8080/projects/${projectId}/bugs/${bugId}`);
-                if (!res.ok) throw new Error("Failed to fetch bug");
-                const data = await res.json();
-
-                setTitle(data.title);
-                setDescription(data.description);
-                setStatus(data.status);
-                setPriority(data.priority);
-                setAsignee(data.asignee);
-                setDueDate(data.duedate);
-            } catch (error) {
-                setError("Error fetching bug");
-                console.error(error);
-            }
-        };
-
-        const fetchAsignees = async () => {
-            try {
-                const res = await fetch(`http://localhost:8080/projects/${projectId}/members`);
-                if (!res.ok) throw new Error("Failed to fetch members");
-                const data = await res.json();
-                setAsignees(data);
-            } catch (error) {
-                console.error(error);
-            }
-        };
-
-        const fetchComments = async () => {
-            try {
-                const res = await fetch(`http://localhost:8080/projects/${projectId}/bugs/${bugId}/comments`);
-                if (!res.ok) throw new Error("Failed to fetch members");
-                const data = await res.json();
-                setComments(data);
-            } catch(error) {
-                console.error(error);
-            }
-        }
-
-        fetchBug();
-        fetchAsignees();
-        fetchComments();
-    }, []);
-
-    const handleUpdateBug = async (e) => {
-        e.preventDefault();
-    
-        if (!title || !description || !status || !priority || !dueDate) {
-            setError("All fields except Assignee are required.");
-            return;
-        }
-    
-        const formattedDueDate = dueDate ? dueDate.split("T")[0] : null;
-        const updatedBug = {
-            title,
-            description,
-            status,
-            priority,
-            asignee: asignee ? Number(asignee) : null, 
-            dueDate: formattedDueDate 
-        };
-    
-    
-        try {
-            const res = await fetch(`http://localhost:8080/projects/${projectId}/bugs/${bugId}`, {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(updatedBug) 
-            });
-    
-            if (!res.ok) {
-                throw new Error("Failed to update bug");
-            }
-    
-            alert("Bug updated successfully!");
-            navigate(`/projects/${projectId}/dashboard`);
-        } catch (error) {
-            setError("Error updating bug: " + error.message);
-            console.error(error);
-        }
-    };
-
-    const deleteBug = async (bugId) => {
-        try {
-          const res = await fetch(`http://localhost:8080/projects/${projectId}/bugs/${bugId}`, {
-            method: "DELETE",
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          });
-          
-          if(res.ok) {
-            alert("Bug deleted successfully!");
-            navigate(`/projects/${projectId}/dashboard`);
-          }
-    
-        } catch(error) {
-          setError("Error deleting bug");
-          console.error(error);
-        }
-    }
-
-    const handleAddComment = async (e) => {
-        e.preventDefault();
-        try {
-            const res = await fetch(`http://localhost:8080/projects/${projectId}/bugs/${bugId}/comments`, {
-                method: "POST",
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    memberId,
-                    content
-                })
-            });
-
-            if (res.ok) {
-                alert("Comment added successfully!");
-                window.location.reload();
-            }
-
-        } catch(error) {
-            console.log(error);
-        }
-    }
-
-    const deleteComment = async (commentId) => {
-        try {
-            const res = await fetch(`http://localhost:8080/projects/${projectId}/bugs/${bugId}/comments/${commentId}`, {
-              method: "DELETE",
-              headers: {
-                'Content-Type': 'application/json'
-              }
-            });
-            
-            if(res.ok) {
-                setComments((prevComments) => prevComments.filter((comment) => comment.id !== commentId));
-            }
-            
-          } catch(error) {
-            setError("Error deleting comment");
-            console.error(error);
-          }
-    }
-
-    const handleDebugAdvice = async () => {
-        try {
-            const text = await debugAdvice(description);
-            setAdvice(text);
-        } catch(error) {
-            console.error(error);
-        }
-    }
-    
-    return (
-        <div>
-            <NavLink to={`/projects/${projectId}/dashboard`}>{'<'} Back to Dashboard</NavLink>
-            <div className='mt-4 flex justify-between items-center'>
-                <h1 className='text-4xl font-black mb-8'>{title}</h1>
-                <button onClick={() => deleteBug(bugId)}>
-                    <svg xmlns="http://www.w3.org/2000/svg"  color='red' fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-10">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                    </svg>
-                </button>
-            </div>
-            <form onSubmit={handleUpdateBug} className='flex px-8 py-4 space-x-32'>
-                <div className='flex flex-col space-y-4'>
-                    <input 
-                        onChange={(e) => setTitle(e.target.value)} 
-                        type='text' 
-                        value={title} 
-                        placeholder='Title' 
-                        className='bg-white p-2 rounded-xl shadow-inner' 
-                    />
-                    <textarea 
-                        onChange={(e) => setDescription(e.target.value)} 
-                        value={description} 
-                        placeholder="Description" 
-                        className="bg-white h-30 w-150 p-2 shadow-inner rounded-xl text-left align-top" 
-                    />
-                    <div className='flex items-center'>
-                        <label className='font-bold mr-2'>Due Date:</label>
-                        <input 
-                            onChange={(e) => setDueDate(e.target.value)} 
-                            type='date' 
-                            value={dueDate.split("T")[0]} 
-                            className='bg-white p-2 rounded-xl shadow-inner' 
-                        />
-                    </div>
-                    <button type='submit' className='bg-blue-400 rounded-full px-3 py-2 text-white font-bold w-1/2'>
-                        Update Bug
-                    </button>
-                </div>
-                <div className='flex flex-col space-y-4'>
-                    <div className='flex items-center'>
-                        <label className='font-bold mr-2'>Status:</label>
-                        <select 
-                            onChange={(e) => setStatus(e.target.value)} 
-                            value={status} 
-                            className='bg-white p-2 rounded-xl shadow-inner'
-                        >
-                            <option value="">Select Status</option>
-                            <option value="TO DO">TO DO</option>
-                            <option value="IN PROGRESS">IN PROGRESS</option>
-                            <option value="DONE">DONE</option>
-                        </select>
-                    </div>
-                    <div className='flex items-center'>
-                        <label className='font-bold mr-2'>Priority:</label>
-                        <select 
-                            onChange={(e) => setPriority(e.target.value)} 
-                            value={priority} 
-                            className='bg-white p-2 rounded-xl shadow-inner'
-                        >
-                            <option value="">Select Priority</option>
-                            <option value="LOW">LOW</option>
-                            <option value="MEDIUM">MEDIUM</option>
-                            <option value="HIGH">HIGH</option>
-                        </select>
-                    </div>
-                    <div className='flex items-center'>
-                        <label className='font-bold mr-2'>Assignee</label>
-                        <select 
-                            onChange={(e) => setAsignee(e.target.value)} 
-                            value={asignee} 
-                            className='bg-white p-2 rounded-xl shadow-inner'
-                        >
-                            <option value="">Select an Asignee</option>
-                            {asignees.map((member) => (
-                                <option key={member.id} value={member.id}>
-                                    {member.firstname} {member.lastname}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
-                {error && <p className="mt-4 bg-red-500 p-2 text-white rounded-xl">{error}</p>}
-            </form>
-            <div className='mt-4 mb-4'>
-                <button onClick={handleDebugAdvice} className='px-3 py-2 rounded-xl text-white bg-gradient-to-b from-blue-900 to-blue-700 font-black'>⚡Ask AI</button>
-                {advice && (
-                    <p className='h-100 overflow-x-auto mt-4 p-10 bg-gradient-to-tr from-orange-300 to-orange-200 rounded-2xl font-bold whitespace-pre-wrap'>
-                        {advice}
-                    </p>
-                )}
-            </div>
-            <div>
-                <h1 className='text-2xl mb-2 font-bold'>Comments</h1>
-                <form onSubmit={handleAddComment} className='flex space-x-4'>
-                    <textarea onChange={(e) => setContent(e.target.value)} type='text' className="bg-white h-30 w-150 p-2 shadow-inner rounded-xl text-left align-top" placeholder='Leave a comment...'/>
-                    <button className='mt-2 h-1/2 bg-green-500 p-2 rounded-2xl text-white font-bold' type='submit'>Comment</button>
-                </form>
-                {comments.length > 0 ? (
-                    <div className='h-80 overflow-x-auto mt-4 p-4 bg-white rounded-xl'>
-                        {comments.map((comment) => (
-                            <div key={comment.id} className='flex space-x-6 p-4'>
-                                <div className='font-black text-xl p-2'>
-                                    {comment.firstname[0]}{comment.lastname[0]}
-                                </div>
-                                <div className='flex flex-col'>
-                                    <div className='flex items-center space-x-2'>
-                                        <p className='font-bold text-lg'>{comment.firstname} {comment.lastname}</p>
-                                        <button onClick={() => deleteComment(comment.id)} className={`${comment.memberid === memberId ? "block" : "hidden"} self-start`}>
-                                            <svg xmlns="http://www.w3.org/2000/svg"  color='red' fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-5">
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                    <p className='text-lg'>{comment.content}</p>
-                                    <p className='font-bold text-sm text-gray-600'>{comment.updatedat.split("T")[0]} {comment.updatedat.split("T")[1].substring(0,5)}</p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                ) : (<p className='p-4'>No comments yet</p>)}
-            </div>
-        </div>
-    );
+const formatTimestamp = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toLocaleString();
 };
 
-export default Bug;
+export default function Bug() {
+  const { id: projectId, bugId } = useParams();
+  const { memberId } = useAuth();
+  const [bug, setBug] = useState(null);
+  const [form, setForm] = useState({ title: "", description: "", dueDate: "", status: "", priority: "", asignee: "" });
+  const [asignees, setAsignees] = useState([]);
+  const [comments, setComments] = useState([]);
+  const [content, setContent] = useState("");
+  const [error, setError] = useState("");
+  const [aiAdvice, setAiAdvice] = useState("");
+  const [aiError, setAiError] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const navigate = useNavigate();
+  const base = `/projects/${encodeURIComponent(projectId)}/bugs/${encodeURIComponent(bugId)}`;
+
+  const load = useCallback(async (signal) => {
+    setLoading(true);
+    setError("");
+    try {
+      const [bugData, membersData, commentsData] = await Promise.all([
+        apiRequest(base, { signal }),
+        apiRequest(`/projects/${encodeURIComponent(projectId)}/members`, { signal }),
+        apiRequest(`${base}/comments`, { signal }),
+      ]);
+      setBug(bugData);
+      setForm({
+        title: bugData.title || "",
+        description: bugData.description || "",
+        dueDate: String(bugData.duedate || "").slice(0, 10),
+        status: bugData.status || "TO DO",
+        priority: bugData.priority || "MEDIUM",
+        asignee: String(bugData.asignee || ""),
+      });
+      setAsignees(Array.isArray(membersData) ? membersData : []);
+      setComments(Array.isArray(commentsData) ? commentsData : []);
+    } catch (requestError) {
+      if (requestError.name !== "AbortError") setError(requestError.message || "Could not load this bug.");
+    } finally {
+      setLoading(false);
+    }
+  }, [base, projectId]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    load(controller.signal);
+    return () => controller.abort();
+  }, [load]);
+
+  const update = (field) => (event) => setForm((current) => ({ ...current, [field]: event.target.value }));
+
+  const handleUpdateBug = async (event) => {
+    event.preventDefault();
+    setError("");
+    setSubmitting(true);
+    try {
+      const updated = await apiRequest(base, {
+        method: "PUT",
+        body: { ...form, asignee: Number(form.asignee), dueDate: form.dueDate },
+      });
+      setBug(updated);
+      setForm((current) => ({ ...current, ...updated, asignee: String(updated.asignee), dueDate: String(updated.duedate || "").slice(0, 10) }));
+      setError("");
+    } catch (requestError) {
+      setError(requestError.message || "Could not update bug.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const deleteBug = async () => {
+    if (!window.confirm(`Delete “${bug?.title || "this bug"}” and its comments?`)) return;
+    try {
+      await apiRequest(base, { method: "DELETE" });
+      navigate(`/projects/${encodeURIComponent(projectId)}/bugs`, { replace: true });
+    } catch (requestError) {
+      setError(requestError.message || "Could not delete bug.");
+    }
+  };
+
+  const handleAddComment = async (event) => {
+    event.preventDefault();
+    const trimmed = content.trim();
+    if (!trimmed) return setError("Comment cannot be empty.");
+    setSubmitting(true);
+    setError("");
+    try {
+      await apiRequest(`${base}/comments`, { method: "POST", body: { content: trimmed } });
+      setContent("");
+      const rows = await apiRequest(`${base}/comments`);
+      setComments(Array.isArray(rows) ? rows : []);
+    } catch (requestError) {
+      setError(requestError.message || "Could not add comment.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const deleteComment = async (commentId) => {
+    try {
+      await apiRequest(`${base}/comments/${encodeURIComponent(commentId)}`, { method: "DELETE" });
+      setComments((current) => current.filter((comment) => comment.id !== commentId));
+    } catch (requestError) {
+      setError(requestError.message || "Could not delete comment.");
+    }
+  };
+
+  const handleDebugAdvice = async () => {
+    setAiError("");
+    setAiAdvice("");
+    if (!form.description.trim()) return setAiError("Add a bug description before asking for advice.");
+    if (form.description.length > 10000) return setAiError("Ask AI accepts descriptions up to 10,000 characters.");
+    setAiLoading(true);
+    try {
+      setAiAdvice(await debugAdvice(form.description));
+    } catch (requestError) {
+      setAiError(requestError.message || "Could not get AI advice.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  if (loading) return <p>Loading bug…</p>;
+  if (!bug) return <main><NavLink to={`/projects/${encodeURIComponent(projectId)}/bugs`}>‹ Back to bugs</NavLink><p role="alert" className="mt-4">{error || "Bug not found."}</p></main>;
+
+  return (
+    <main>
+      <NavLink to={`/projects/${encodeURIComponent(projectId)}/dashboard`}>‹ Back to Dashboard</NavLink>
+      <header className="mt-4 flex justify-between items-start gap-4">
+        <h1 className="text-3xl sm:text-4xl font-black mb-6">{bug.title}</h1>
+        <button onClick={deleteBug} aria-label="Delete bug" className="text-red-700 underline">Delete</button>
+      </header>
+      {error && <p role="alert" className="mb-4 bg-red-100 text-red-800 p-3 rounded-lg">{error}</p>}
+      <form onSubmit={handleUpdateBug} className="grid grid-cols-1 lg:grid-cols-2 gap-6 bg-white rounded-2xl p-6">
+        <label className="flex flex-col gap-2">Title<input required maxLength={200} value={form.title} onChange={update("title")} className="bg-gray-100 p-2 rounded-xl" /></label>
+        <label className="flex flex-col gap-2">Description<textarea required maxLength={20000} value={form.description} onChange={update("description")} className="bg-gray-100 min-h-40 p-2 rounded-xl" /></label>
+        <label className="flex flex-col gap-2">Due date<input required type="date" value={form.dueDate} onChange={update("dueDate")} className="bg-gray-100 p-2 rounded-xl" /></label>
+        <label className="flex flex-col gap-2">Status<select required value={form.status} onChange={update("status")} className="bg-gray-100 p-2 rounded-xl"><option>TO DO</option><option>IN PROGRESS</option><option>DONE</option></select></label>
+        <label className="flex flex-col gap-2">Priority<select required value={form.priority} onChange={update("priority")} className="bg-gray-100 p-2 rounded-xl"><option>LOW</option><option>MEDIUM</option><option>HIGH</option></select></label>
+        <label className="flex flex-col gap-2">Assignee<select required value={form.asignee} onChange={update("asignee")} className="bg-gray-100 p-2 rounded-xl"><option value="">Select an assignee</option>{asignees.map((member) => <option key={member.id} value={member.id}>{member.firstname} {member.lastname}</option>)}</select></label>
+        <button disabled={submitting} className="bg-blue-600 rounded-full px-3 py-2 text-white font-bold w-fit">{submitting ? "Saving…" : "Update Bug"}</button>
+      </form>
+
+      <section className="mt-6">
+        <p className="text-sm text-gray-600 mb-2">This sends the bug description to Groq. Remove secrets or personal data before requesting advice.</p>
+        <button type="button" onClick={handleDebugAdvice} disabled={aiLoading || submitting} className="px-4 py-2 rounded-xl text-white bg-gradient-to-b from-blue-900 to-blue-700 font-bold">
+          {aiLoading ? "Getting advice…" : "⚡ Ask AI to help debug"}
+        </button>
+        {aiError && <p role="alert" className="mt-3 bg-red-100 text-red-800 p-3 rounded-lg">{aiError}</p>}
+        {aiAdvice && <div className="mt-4 p-5 bg-orange-100 rounded-2xl">
+          <h2 className="font-bold text-lg mb-2">Suggested debugging steps</h2>
+          <p className="whitespace-pre-wrap break-words">{aiAdvice}</p>
+          <p className="mt-3 text-sm text-gray-600">AI suggestions can be incorrect; verify them against your code and logs.</p>
+        </div>}
+      </section>
+
+      <section className="mt-8">
+        <h2 className="text-2xl mb-3 font-bold">Comments</h2>
+        <form onSubmit={handleAddComment} className="flex flex-col sm:flex-row gap-3">
+          <label className="sr-only" htmlFor="comment-content">Write a comment</label>
+          <textarea id="comment-content" required maxLength={5000} value={content} onChange={(event) => setContent(event.target.value)} className="bg-white min-h-24 flex-1 p-3 rounded-xl" placeholder="Leave a comment…" />
+          <button disabled={submitting} className="self-start bg-green-600 px-4 py-2 rounded-xl text-white font-bold" type="submit">Comment</button>
+        </form>
+        {comments.length ? <div className="max-h-96 overflow-y-auto mt-4 p-4 bg-white rounded-xl space-y-3">
+          {comments.map((comment) => (
+            <article key={comment.id} className="flex gap-4 p-3 border-b">
+              <div className="font-black text-lg" aria-hidden="true">{comment.firstname?.[0] || "?"}{comment.lastname?.[0] || "?"}</div>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-3"><p className="font-bold">{comment.firstname} {comment.lastname}</p>
+                  {Number(comment.memberid) === Number(memberId) && <button type="button" onClick={() => deleteComment(comment.id)} className="text-red-700 underline">Delete</button>}
+                </div>
+                <p className="whitespace-pre-wrap break-words">{comment.content}</p>
+                <time className="text-sm text-gray-600" dateTime={comment.updatedat || comment.createdat}>{formatTimestamp(comment.updatedat || comment.createdat)}</time>
+              </div>
+            </article>
+          ))}
+        </div> : <p className="p-4">No comments yet.</p>}
+      </section>
+      <p className="sr-only">Current bug ID: {bug.id}</p>
+    </main>
+  );
+}

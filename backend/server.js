@@ -10,6 +10,7 @@ import membersRouter from "./routes/members.js";
 import projectsRouter from "./routes/projects.js";
 import bugsRouter from "./routes/bugs.js";
 import commentsRouter from "./routes/comments.js";
+import aiRouter from "./routes/ai.js";
 
 const app = express();
 const port = Number(process.env.PORT ?? 3000);
@@ -49,15 +50,24 @@ const authLimiter = rateLimit({
     legacyHeaders: false,
     message: { error: "Too many authentication attempts. Try again later." },
 });
+const aiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 10,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    message: { error: "Too many AI requests. Try again later." },
+});
 
 app.get("/health", (req, res) => res.status(200).json({ status: "ok" }));
 app.use("/members/register", authLimiter);
 app.use("/members/login", authLimiter);
+app.use("/ai", aiLimiter);
 app.use(apiLimiter);
 app.use("/members", membersRouter);
 app.use("/projects", projectsRouter);
 app.use("/bugs", bugsRouter);
 app.use("/comments", commentsRouter);
+app.use("/ai", aiRouter);
 
 app.use((req, res) => res.status(404).json({ error: "Route not found" }));
 

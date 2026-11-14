@@ -1,17 +1,8 @@
-import React from 'react'
+import React from "react";
 
-const ProjectCard = ({title, description}) => {
-  return (
-    <div className='flex bg-white rounded-2xl shadow-xl'>
-        <div>
-            <img className='rounded-l-2xl' src='https://mosaicprojects.com.au/Images/ProjectType.png' height={300} width={300}/>
-        </div>
-        <div className='p-3'>
-            <h3 className='font-black'>{title}</h3>
-            <p className='text-gray-500'>{description}</p>
-        </div>
-    </div>
-  )
+export default function ProjectCard({ title, description }) {
+  return <div className="min-h-36 bg-white rounded-2xl shadow-xl p-5 border-l-4 border-blue-700">
+    <h3 className="font-black text-xl">{title}</h3>
+    <p className="text-gray-600 mt-2 line-clamp-3">{description}</p>
+  </div>;
 }
-
-export default ProjectCard

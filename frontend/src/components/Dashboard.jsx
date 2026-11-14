@@ -1,148 +1,84 @@
 import React, { useEffect, useState } from "react";
-import { NavLink, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import BugCard from "./BugCard";
+import { apiRequest } from "../lib/api";
+import { useAuth } from "./AuthContext";
 
-const Dashboard = () => {
-    const { id } = useParams();
-    const [bugs, setBugs] = useState([]);
-    const [members, setMembers] = useState([]);
-    const [filter, setFilter] = useState("");
+export default function Dashboard() {
+  const { id } = useParams();
+  const { memberId } = useAuth();
+  const [bugs, setBugs] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [filter, setFilter] = useState("");
+  const [isOwner, setIsOwner] = useState(false);
+  const [error, setError] = useState("");
 
-    useEffect(() => {
-        const fetchMembers = async () => {
-            try {
-                const res = await fetch(`http://localhost:8080/projects/${id}/members`);
-                const data = await res.json();
-                console.log(data);
-                setMembers(data);
-            } catch (error) {
-                console.log(error);
-            }
-        };
+  useEffect(() => {
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      try {
+        setError("");
+        const query = new URLSearchParams({ filter, page: "1", limit: "100" });
+        const [memberRows, bugData, projectData] = await Promise.all([
+          apiRequest(`/projects/${encodeURIComponent(id)}/members`, { signal: controller.signal }),
+          apiRequest(`/projects/${encodeURIComponent(id)}/bugs?${query}`, { signal: controller.signal }),
+          apiRequest("/projects?page=1&limit=100", { signal: controller.signal }),
+        ]);
+        setMembers(Array.isArray(memberRows) ? memberRows : []);
+        setBugs(Array.isArray(bugData?.bugs) ? bugData.bugs : []);
+        const project = projectData?.projects?.find((item) => String(item.id) === String(id));
+        setIsOwner(project?.role === "owner");
+      } catch (requestError) {
+        if (requestError.name !== "AbortError") setError(requestError.message || "Could not load the project dashboard.");
+      }
+    }, 250);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [id, filter]);
 
-        const fetchBugs = async () => {
-            try {
-                const res = await fetch(`http://localhost:8080/projects/${id}/bugs?filter=${filter}`);
-                const data = await res.json();
-                console.log(data);
-                setBugs(data.bugs);
-            } catch (error) {
-                console.error(error);
-            }
-        };
+  const deleteMember = async (member) => {
+    if (Number(member.id) === Number(memberId)) return setError("You cannot remove your own account from this project.");
+    if (!window.confirm(`Remove ${member.firstname} ${member.lastname} from this project?`)) return;
+    try {
+      await apiRequest(`/projects/${encodeURIComponent(id)}/deleteMember/${encodeURIComponent(member.id)}`, { method: "DELETE" });
+      setMembers((current) => current.filter((item) => item.id !== member.id));
+    } catch (requestError) {
+      setError(requestError.message || "Could not remove member.");
+    }
+  };
 
-        fetchMembers();
-        fetchBugs();
-    }, [filter]);
+  const todoBugs = bugs.filter((bug) => bug.status === "TO DO");
+  const inProgressBugs = bugs.filter((bug) => bug.status === "IN PROGRESS");
+  const doneBugs = bugs.filter((bug) => bug.status === "DONE");
+  const columns = [["TO DO", todoBugs], ["IN PROGRESS", inProgressBugs], ["DONE", doneBugs]];
 
-    
-
-    const deleteMember = async (memberid) => {
-        try {
-            const res = await fetch(`http://localhost:8080/projects/${id}/deleteMember/${memberid}`, {
-                method: "DELETE",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
-
-            if (res.ok) {
-                setMembers((prevMembers) => prevMembers.filter((member) => member.id !== memberid));
-            }
-        } catch (error) {
-            console.error(error);
-        }
-    };
-
-    const todoBugs = bugs.filter((bug) => bug.status === "TO DO");
-    const inProgressBugs = bugs.filter((bug) => bug.status === "IN PROGRESS");
-    const doneBugs = bugs.filter((bug) => bug.status === "DONE");
-
-    return (
-        <div>
-            <h1 className="text-4xl font-black mb-6">Dashboard</h1>
-            <NavLink to={`/projects/${id}/addMember`} className="px-3 py-2 bg-green-400 rounded-full font-bold text-white">
-                + Add Member to Project
-            </NavLink>
-
-            <div className="flex items-center space-x-4 mt-4">
-                <div className="text-2xl font-bold">Project Members: </div>
-                <div className="flex">
-                    {members.length > 0 ? (
-                        <div className="flex space-x-4 overflow-x-auto w-200 p-2 text-nowrap">
-                            {members.map((member) => (
-                                <div key={member.id} className="flex space-x-2 bg-white rounded-full shadow-md px-3 py-2">
-                                    <div className="font-black">{member.firstname[0]}{member.lastname[0]}</div>
-                                    <div>{member.firstname} {member.lastname}</div>
-                                    <button onClick={() => deleteMember(member.id)} className="px-2 text-red-600 underline">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className='size-12' color='red' fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                                    </svg>
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <p>No members in this project</p>
-                    )}
-                </div>
+  return (
+    <main>
+      <h1 className="text-4xl font-black mb-6">Dashboard</h1>
+      {isOwner && <Link to={`/projects/${encodeURIComponent(id)}/addMember`} className="inline-block px-3 py-2 bg-green-600 rounded-full font-bold text-white">+ Add Member to Project</Link>}
+      {error && <p role="alert" className="my-4 bg-red-100 text-red-800 p-3 rounded-lg">{error}</p>}
+      <section className="mt-4">
+        <h2 className="text-2xl font-bold mb-2">Project Members</h2>
+        <div className="flex gap-3 overflow-x-auto p-2">
+          {members.length ? members.map((member) => (
+            <div key={member.id} className="flex shrink-0 items-center gap-2 bg-white rounded-full shadow px-3 py-2">
+              <span className="font-black">{member.firstname?.[0] || "?"}{member.lastname?.[0] || "?"}</span>
+              <span>{member.firstname} {member.lastname}</span>
+              {isOwner && Number(member.id) !== Number(memberId) && <button onClick={() => deleteMember(member)} aria-label={`Remove ${member.firstname} ${member.lastname}`} className="text-red-700 underline">Remove</button>}
             </div>
-            <div className="flex items-center mt-2">
-                    <input onChange={(e) => setFilter(e.target.value)} value={filter} className="p-2 shadow-lg bg-white w-[250px] rounded-xl" placeholder="Search bugs..."/>
-                    <div className="-ml-8">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-                        </svg>
-                    </div>
-            </div>
-            <div className="flex space-x-6 mt-6">
-                <div className="p-6 bg-white rounded-2xl w-1/3 shadow-md">
-                    <h1 className="text-xl text-gray-500 mb-4">TO DO</h1>
-                    <div className="h-70 space-y-4 overflow-auto p-2">
-                        {todoBugs.length > 0 ? (
-                            todoBugs.map((bug) => (
-                                <NavLink className='p-2' to={`/projects/${id}/bugs/${bug.id}`}>
-                                    <BugCard key={bug.id} title={bug.title} priority={bug.priority} dueDate={bug.duedate}/>
-                                </NavLink>
-                            ))
-                        ) : (
-                            <p className="text-gray-400">No bugs</p>
-                        )}
-                    </div>
-                </div>
-
-                <div className="p-6 bg-white rounded-2xl w-1/3 shadow-md">
-                    <h1 className="text-xl text-gray-500 mb-4">IN PROGRESS</h1>
-                    <div className="h-70 space-y-4 overflow-auto">
-                        {inProgressBugs.length > 0 ? (
-                            inProgressBugs.map((bug) => (
-                                <NavLink className='p-2' to={`/projects/${id}/bugs/${bug.id}`}>
-                                    <BugCard key={bug.id} title={bug.title} priority={bug.priority} dueDate={bug.duedate}/>
-                                </NavLink>
-                            ))  
-                        ) : (
-                            <p className="text-gray-400">No bugs</p>
-                        )}
-                    </div>
-                </div>
-                
-                <div className="p-6 bg-white rounded-2xl w-1/3 shadow-md">
-                    <h1 className="text-xl text-gray-500 mb-4">DONE</h1>
-                    <div className="h-70 space-y overflow-auto p-2">
-                        {doneBugs.length > 0 ? (
-                            doneBugs.map((bug) => (
-                                <NavLink className='p-2' to={`/projects/${id}/bugs/${bug.id}`}>
-                                    <BugCard key={bug.id} title={bug.title} priority={bug.priority} dueDate={bug.duedate}/>
-                                </NavLink>
-                            ))
-                        ) : (
-                            <p className="text-gray-400">No bugs</p>
-                        )}
-                    </div>
-                </div>
-            </div>
+          )) : <p>No members in this project.</p>}
         </div>
-    );
-};
-
-export default Dashboard;
+      </section>
+      <label className="flex items-center gap-3 mt-4">Search bugs
+        <input onChange={(event) => setFilter(event.target.value)} value={filter} maxLength={100} className="p-2 shadow bg-white w-full max-w-xs rounded-xl" placeholder="Title or description" />
+      </label>
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+        {columns.map(([heading, rows]) => <div key={heading} className="p-5 bg-white rounded-2xl shadow-md min-w-0">
+          <h2 className="text-xl text-gray-600 mb-4">{heading}</h2>
+          <div className="max-h-96 space-y-4 overflow-auto p-1">
+            {rows.length ? rows.map((bug) => <Link key={bug.id} className="block" to={`/projects/${encodeURIComponent(id)}/bugs/${encodeURIComponent(bug.id)}`}><BugCard title={bug.title} priority={bug.priority} dueDate={bug.duedate} /></Link>) : <p className="text-gray-400">No bugs</p>}
+          </div>
+        </div>)}
+      </section>
+    </main>
+  );
+}
