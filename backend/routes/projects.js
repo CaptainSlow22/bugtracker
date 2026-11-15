@@ -126,14 +126,16 @@ projectsRouter.get("/:projectId/members", async (req, res) => {
 projectsRouter.post("/:projectId/bugs", async (req, res) => {
     try {
         const projectId = validateId(req.params.projectId, "projectId");
-        const { title, description, status, priority, asignee, dueDate } = validateFields(req.body, {
+        const { title, description, status, priority, asignee, dueDate, resolution } = validateFields(req.body, {
             title: { type: "string", required: true, min: 1, max: 200 },
             description: { type: "string", required: true, min: 1, max: 20000 },
             status: { type: "string", required: true, min: 1, max: 20, values: ["TO DO", "IN PROGRESS", "DONE"] },
             priority: { type: "string", required: true, min: 1, max: 10, values: ["LOW", "MEDIUM", "HIGH"] },
             asignee: { type: "id", required: true },
             dueDate: { type: "date", required: true },
+            resolution: { type: "string", min: 1, max: 10000 },
         });
+        if (resolution && status !== "DONE") return res.status(400).json({ error: "Resolution notes are only allowed for completed bugs" });
 
         const assignedMember = await pool.query(
             "SELECT 1 FROM projects_members WHERE projectId = $1 AND memberId = $2",
@@ -141,7 +143,7 @@ projectsRouter.post("/:projectId/bugs", async (req, res) => {
         );
         if (!assignedMember.rowCount) return res.status(400).json({ error: "Assignee must belong to the project" });
         
-        const newBug = await pool.query("INSERT INTO bugs(projectId, title, description, status, priority, asignee, reporter, dueDate) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, projectId, title, description, status, priority, asignee, reporter, dueDate",[projectId, title, description, status, priority, asignee, req.user.memberId, dueDate]);
+        const newBug = await pool.query("INSERT INTO bugs(projectId, title, description, status, priority, asignee, reporter, dueDate, resolution) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, projectId, title, description, status, priority, asignee, reporter, dueDate, resolution", [projectId, title, description, status, priority, asignee, req.user.memberId, dueDate, resolution ?? null]);
 
         return res.status(201).json(newBug.rows[0]);
     } catch(e) {
@@ -153,14 +155,16 @@ projectsRouter.put("/:projectId/bugs/:id", async (req, res) => {
     try {
         const projectId = validateId(req.params.projectId, "projectId");
         const id = validateId(req.params.id, "id");
-        const { title, description, status, priority, asignee, dueDate } = validateFields(req.body, {
+        const { title, description, status, priority, asignee, dueDate, resolution } = validateFields(req.body, {
             title: { type: "string", required: true, min: 1, max: 200 },
             description: { type: "string", required: true, min: 1, max: 20000 },
             status: { type: "string", required: true, min: 1, max: 20, values: ["TO DO", "IN PROGRESS", "DONE"] },
             priority: { type: "string", required: true, min: 1, max: 10, values: ["LOW", "MEDIUM", "HIGH"] },
             asignee: { type: "id", required: true },
             dueDate: { type: "date", required: true },
+            resolution: { type: "string", min: 1, max: 10000 },
         });
+        if (resolution && status !== "DONE") return res.status(400).json({ error: "Resolution notes are only allowed for completed bugs" });
 
         const assignedMember = await pool.query(
             "SELECT 1 FROM projects_members WHERE projectId = $1 AND memberId = $2",
@@ -168,7 +172,7 @@ projectsRouter.put("/:projectId/bugs/:id", async (req, res) => {
         );
         if (!assignedMember.rowCount) return res.status(400).json({ error: "Assignee must belong to the project" });
         
-        const updatedBug = await pool.query("UPDATE bugs SET title = $1, description = $2, status = $3, priority = $4, asignee = $5, dueDate = $6 WHERE projectId = $7 AND id = $8 RETURNING id, projectId, title, description, status, priority, asignee, reporter, dueDate",[title, description, status, priority, asignee, dueDate, projectId, id]);
+        const updatedBug = await pool.query("UPDATE bugs SET title = $1, description = $2, status = $3, priority = $4, asignee = $5, dueDate = $6, resolution = $7 WHERE projectId = $8 AND id = $9 RETURNING id, projectId, title, description, status, priority, asignee, reporter, dueDate, resolution", [title, description, status, priority, asignee, dueDate, resolution ?? null, projectId, id]);
         if(!updatedBug.rowCount) return res.status(404).json({ error: "Bug not found" });
         return res.status(200).json(updatedBug.rows[0]);
     } catch(e) {
@@ -220,7 +224,7 @@ projectsRouter.get("/:projectId/bugs/:bugId", async (req, res) => {
         const projectId = validateId(req.params.projectId, "projectId");
         const bugId = validateId(req.params.bugId, "bugId");
 
-        const bug = await pool.query("SELECT id, projectId, title, description, status, priority, asignee, reporter, dueDate FROM bugs WHERE projectId = $1 AND id = $2", [projectId, bugId]);
+        const bug = await pool.query("SELECT id, projectId, title, description, status, priority, asignee, reporter, dueDate, resolution FROM bugs WHERE projectId = $1 AND id = $2", [projectId, bugId]);
 
         if(!bug.rowCount) return res.status(404).json({ error: "Bug not found" });
         return res.status(200).json(bug.rows[0]);

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { NavLink, useNavigate, useParams } from "react-router-dom";
 import { apiRequest } from "../lib/api";
 
-const initialForm = { title: "", description: "", status: "TO DO", priority: "MEDIUM", asignee: "", dueDate: "" };
+const initialForm = { title: "", description: "", status: "TO DO", priority: "MEDIUM", asignee: "", dueDate: "", resolution: "" };
 
 export default function AddBug() {
   const { id } = useParams();
@@ -12,6 +12,10 @@ export default function AddBug() {
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
   const update = (field) => (event) => setForm((current) => ({ ...current, [field]: event.target.value }));
+  const updateStatus = (event) => {
+    const status = event.target.value;
+    setForm((current) => ({ ...current, status, resolution: status === "DONE" ? current.resolution : "" }));
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -29,7 +33,7 @@ export default function AddBug() {
     try {
       await apiRequest(`/projects/${encodeURIComponent(id)}/bugs`, {
         method: "POST",
-        body: { ...form, asignee: Number(form.asignee) },
+        body: { ...form, asignee: Number(form.asignee), resolution: form.status === "DONE" ? form.resolution : "" },
       });
       navigate(`/projects/${encodeURIComponent(id)}/bugs`);
     } catch (requestError) {
@@ -50,9 +54,10 @@ export default function AddBug() {
           <label className="flex flex-col gap-2">Due date<input required type="date" value={form.dueDate} onChange={update("dueDate")} className="bg-gray-100 p-2 rounded-xl" /></label>
         </div>
         <div className="flex flex-col gap-4">
-          <label className="flex flex-col gap-2">Status<select required value={form.status} onChange={update("status")} className="bg-gray-100 p-2 rounded-xl"><option>TO DO</option><option>IN PROGRESS</option><option>DONE</option></select></label>
+          <label className="flex flex-col gap-2">Status<select required value={form.status} onChange={updateStatus} className="bg-gray-100 p-2 rounded-xl"><option>TO DO</option><option>IN PROGRESS</option><option>DONE</option></select></label>
           <label className="flex flex-col gap-2">Priority<select required value={form.priority} onChange={update("priority")} className="bg-gray-100 p-2 rounded-xl"><option>LOW</option><option>MEDIUM</option><option>HIGH</option></select></label>
           <label className="flex flex-col gap-2">Assignee<select required value={form.asignee} onChange={update("asignee")} className="bg-gray-100 p-2 rounded-xl"><option value="">Select an assignee</option>{members.map((member) => <option key={member.id} value={member.id}>{member.firstname} {member.lastname}</option>)}</select></label>
+          {form.status === "DONE" && <label className="flex flex-col gap-2">Resolution notes<textarea maxLength={10000} value={form.resolution} onChange={update("resolution")} className="bg-gray-100 min-h-28 p-2 rounded-xl" placeholder="Describe the fix or steps that resolved this bug." /></label>}
           <button disabled={submitting} className="bg-red-500 rounded-full px-3 py-2 text-white font-bold">{submitting ? "Submitting…" : "Report Bug"}</button>
         </div>
       </form>
